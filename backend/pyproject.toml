@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegissoc-backend"
+version = "0.1.0"
+description = "AegisSOC AI - Evidence-Grounded Autonomous Security Operations Platform"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "C",    # flake8-comprehensions
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "S",    # flake8-bandit (security checks)
+]
+ignore = [
+    "B008", # do not perform function calls in argument defaults (FastAPI Depends)
+    "S101", # use of assert detected (valid in tests)
+    "S104", # possible binding to all interfaces (0.0.0.0 in dev/docker)
+    "S105", # possible hardcoded password (flagged on bearer token_type)
+    "S106", # possible hardcoded password (flagged on test fixtures)
+    "UP042", # replace str, Enum with StrEnum
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106", "F841"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]

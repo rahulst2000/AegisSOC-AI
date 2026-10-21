@@ -1,0 +1,99 @@
+name: AegisSOC CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend-quality-and-tests:
+    name: Backend Linting, Security & Pytest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aegissoc_user
+          POSTGRES_PASSWORD: aegissoc_secure_password
+          POSTGRES_DB: aegissoc_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Ruff Linter & Security Bandit Checks
+        working-directory: ./backend
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Run Pytest Suite & Cross-Tenant Security Tests
+        working-directory: ./backend
+        env:
+          ENVIRONMENT: testing
+          SECRET_KEY: ci-environment-testing-secret-key-32-chars-long
+          POSTGRES_SERVER: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: aegissoc_user
+          POSTGRES_PASSWORD: aegissoc_secure_password
+          POSTGRES_DB: aegissoc_db
+        run: |
+          pytest -v --tb=short
+
+  frontend-tests-and-build:
+    name: Frontend Vitest & TypeScript Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: frontend/package.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run Frontend Tests (Vitest)
+        working-directory: ./frontend
+        run: npm run test
+
+      - name: Verify Frontend Production Build
+        working-directory: ./frontend
+        run: npm run build
