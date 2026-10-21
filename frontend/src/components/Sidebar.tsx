@@ -6,9 +6,20 @@ import {
   Activity,
   FileText,
   ShieldAlert,
+  Sliders,
+  Crosshair,
+  TrendingUp,
 } from "lucide-react";
 
-export type NavTab = "dashboard" | "incidents" | "assets" | "events" | "docs";
+export type NavTab =
+  | "dashboard"
+  | "incidents"
+  | "rules"
+  | "adversary"
+  | "improvement"
+  | "assets"
+  | "events"
+  | "docs";
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -29,6 +40,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: <AlertTriangle size={18} />,
       badge: openIncidentsCount > 0 ? openIncidentsCount : undefined,
     },
+    { id: "rules" as NavTab, label: "Detection Rules", icon: <Sliders size={18} /> },
+    { id: "adversary" as NavTab, label: "Adversary Validation", icon: <Crosshair size={18} /> },
+    { id: "improvement" as NavTab, label: "Security Improvement", icon: <TrendingUp size={18} /> },
     { id: "assets" as NavTab, label: "Asset Inventory", icon: <Server size={18} /> },
     { id: "events" as NavTab, label: "Security Events", icon: <Activity size={18} /> },
     { id: "docs" as NavTab, label: "Architecture & Docs", icon: <FileText size={18} /> },

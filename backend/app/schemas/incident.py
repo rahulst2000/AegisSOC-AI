@@ -35,5 +35,12 @@ class IncidentRead(IncidentBase):
 
     id: uuid.UUID
     tenant_id: uuid.UUID
+    mitre_techniques: list[str] = Field(default_factory=list)
+    detection_ids: list[str] = Field(default_factory=list)
+    affected_assets: list[str] = Field(default_factory=list)
+    affected_users: list[str] = Field(default_factory=list)
+    source_ips: list[str] = Field(default_factory=list)
+    first_seen: datetime | None = None
+    last_seen: datetime | None = None
     created_at: datetime
     updated_at: datetime

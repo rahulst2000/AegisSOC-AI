@@ -84,6 +84,12 @@ async def create_security_event(
 
     await db.commit()
     await db.refresh(event)
+
+    # Enqueue event asynchronously for detection evaluation (resilient fallback if Redis unavailable)
+    from app.workers.queue import enqueue_event_for_detection
+
+    await enqueue_event_for_detection(str(event.id), str(tenant_id))
+
     return event
 
 

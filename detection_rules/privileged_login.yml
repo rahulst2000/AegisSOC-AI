@@ -1,0 +1,21 @@
+title: Suspicious Privileged Account Login
+id: AEGIS-SIG-PRIVILEGED-LOGIN
+status: stable
+description: Detects successful authentication to high-privilege system accounts such as root, Administrator, or domain admins.
+version: 1.0.0
+logsource:
+  category: authentication
+detection:
+  selection:
+    event_type: AUTH_SUCCESS
+    username:
+      - root
+      - administrator
+      - admin
+  condition: selection
+level: high
+tags:
+  - attack.defense_evasion
+  - attack.privilege_escalation
+  - attack.t1078
+  - attack.t1078.003

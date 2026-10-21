@@ -18,18 +18,21 @@ select = [
     "W",    # pycodestyle warnings
     "F",    # pyflakes
     "I",    # isort
-    "C",    # flake8-comprehensions
+    "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "UP",   # pyupgrade
     "S",    # flake8-bandit (security checks)
 ]
 ignore = [
     "B008", # do not perform function calls in argument defaults (FastAPI Depends)
+    "B904", # within an except clause, raise exceptions with from
+    "C901", # function too complex
     "S101", # use of assert detected (valid in tests)
     "S104", # possible binding to all interfaces (0.0.0.0 in dev/docker)
     "S105", # possible hardcoded password (flagged on bearer token_type)
     "S106", # possible hardcoded password (flagged on test fixtures)
     "UP042", # replace str, Enum with StrEnum
+    "E501",  # line length
 ]
 
 [tool.ruff.lint.per-file-ignores]

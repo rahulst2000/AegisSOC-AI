@@ -1,0 +1,19 @@
+title: Successful Authentication After Repeated Failures
+id: AEGIS-SIG-FAILURE-THEN-SUCCESS
+status: stable
+description: Detects a successful authentication event following multiple prior authentication failures within a correlation window.
+version: 1.0.0
+logsource:
+  category: authentication
+detection:
+  selection:
+    event_type:
+      - AUTH_FAILURE
+      - AUTH_SUCCESS
+  timeframe: 10m
+  condition: selection | count() >= 3
+level: high
+tags:
+  - attack.initial_access
+  - attack.credential_access
+  - attack.t1078

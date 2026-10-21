@@ -25,7 +25,7 @@ async def test_error_handling_middleware_does_not_leak_stacktrace(client: AsyncC
         json={"email": "not-an-email"},  # Missing required fields
     )
     assert res.status_code == 422
-    data = res.json()
+    _ = res.json()
     assert "Traceback" not in res.text
     assert 'File "' not in res.text
 

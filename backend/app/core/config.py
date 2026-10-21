@@ -63,6 +63,18 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
 
+    # AI & Google Gemini Configuration
+    GEMINI_API_KEY: str = Field(
+        default="",
+        description="Google Gemini API key. Never expose in logs, API responses, or frontend.",
+    )
+    AI_PROVIDER: str = Field(default="gemini", description="AI Provider: gemini, deterministic, openai")
+    AI_MODEL: str = Field(default="gemini-2.5-flash", description="Default AI model")
+    AI_REQUEST_TIMEOUT_SECONDS: float = Field(default=30.0, description="Max timeout for AI requests")
+    AI_MAX_RETRIES: int = Field(default=2, description="Max retries for transient AI API errors")
+    AI_MAX_INPUT_CHARS: int = Field(default=50000, description="Max chars in serialized context to prevent DoS")
+    AI_MAX_OUTPUT_TOKENS: int = Field(default=4096, description="Max output tokens for AI response")
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:

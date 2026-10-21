@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, Uuid
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Index, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -28,6 +28,13 @@ class Incident(Base):
     risk_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="OPEN", index=True, nullable=False)
+    mitre_techniques: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    detection_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    affected_assets: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    affected_users: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    source_ips: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    first_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

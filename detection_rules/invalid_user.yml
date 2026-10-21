@@ -1,0 +1,17 @@
+title: Authentication Attempt for Non-Existent User
+id: AEGIS-SIG-INVALID-USER
+status: stable
+description: Detects login attempts targeting non-existent or invalid accounts, indicating enumeration or brute force.
+version: 1.0.0
+logsource:
+  service: ssh
+  category: authentication
+detection:
+  selection:
+    event_type: AUTH_FAILURE
+    raw_event.message|contains: invalid user
+  condition: selection
+level: medium
+tags:
+  - attack.credential_access
+  - attack.t1110

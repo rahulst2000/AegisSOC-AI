@@ -9,6 +9,9 @@ import { IncidentsPage } from "./pages/IncidentsPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { EventsPage } from "./pages/EventsPage";
 import { DocsPage } from "./pages/DocsPage";
+import RulesPage from "./pages/RulesPage";
+import { AdversaryPage } from "./pages/AdversaryPage";
+import { SecurityImprovementPage } from "./pages/SecurityImprovementPage";
 
 export const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -133,6 +136,18 @@ export const App: React.FC = () => {
 
           {activeTab === "incidents" && (
             <IncidentsPage incidents={incidents} onRefresh={refreshData} />
+          )}
+
+          {activeTab === "rules" && (
+            <RulesPage currentUser={user} />
+          )}
+
+          {activeTab === "adversary" && (
+            <AdversaryPage />
+          )}
+
+          {activeTab === "improvement" && (
+            <SecurityImprovementPage />
           )}
 
           {activeTab === "assets" && (

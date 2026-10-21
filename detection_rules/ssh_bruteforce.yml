@@ -1,0 +1,19 @@
+title: SSH Brute Force Authentication Attempts
+id: AEGIS-SIG-SSH-BRUTEFORCE
+status: stable
+description: Detects repeated failed SSH authentication attempts originating from a single source IP within a short timeframe.
+version: 1.0.0
+logsource:
+  service: ssh
+  category: authentication
+detection:
+  selection:
+    event_type: AUTH_FAILURE
+    source: ssh
+  timeframe: 5m
+  condition: selection | count() > 9
+level: high
+tags:
+  - attack.credential_access
+  - attack.t1110
+  - attack.t1110.001
