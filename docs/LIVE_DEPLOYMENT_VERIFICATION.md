@@ -4,7 +4,7 @@
 **Verification Date**: 2026-10-25  
 **Evaluation Scope**: Full-Stack Live Deployment  
 **Repository**: [https://github.com/rahulst2000/AegisSOC-AI.git](https://github.com/rahulst2000/AegisSOC-AI.git)  
-**Git Commit**: `c9c2d7ad7e5e44e6b1db35a1180e9b5d13c11753`  
+**Git Commit**: `d252811330d6043080cdd53fca4c54f8e6c595e0`  
 **Deployment Version**: 1.0.0  
 
 ---
