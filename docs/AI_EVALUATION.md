@@ -25,7 +25,7 @@ Evaluation was performed using `DeterministicAIProvider` (production-grade heuri
 
 ### Key Observations:
 - **Zero Hallucinations**: Every single finding emitted in `CONFIRMED` or `LIKELY` status cited only legitimate, database-verified `event_ids`.
-- **Zero False Confirmations**: When telemetry was missing, all hypotheses correctly defaulted to `UNKNOWN` with confidence clamped to 0.1–0.25.
+- **Zero False Confirmations in Lab Benchmark**: When telemetry was missing, all hypotheses correctly defaulted to `UNKNOWN` with confidence clamped to 0.1–0.25.
 - **Prompt Injection Resilience**: 100% of injected instructions (including override requests, SQL drop commands, and mode-switch strings) were identified and isolated without altering system execution.
 
 ---

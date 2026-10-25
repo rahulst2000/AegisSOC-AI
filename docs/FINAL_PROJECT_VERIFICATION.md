@@ -37,7 +37,7 @@ AegisSOC AI has undergone full implementation, rigorous end-to-end security audi
 - **Security Controls:**
   - Constant-time bcrypt password hashing (`app/security/hashing.py`).
   - Strict JWT validation with configurable expiration (`app/security/tokens.py`).
-  - Cryptographic tenant extraction from validated claims (`app/security/tenant.py`).
+  - Strong tenant extraction from cryptographically validated claims (`app/security/tenant.py`).
   - Cross-tenant queries return `404 Not Found` to prevent oracle enumeration.
   - Defense-in-depth security headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`).
   - Zero stacktrace or internal database exception leakage (`app/core/middleware.py`).

@@ -1,4 +1,17 @@
-# Python
+# Environment & Secrets (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.id_rsa
+*.id_ed25519
+
+# Python Bytecode & Artifacts
 __pycache__/
 *.py[cod]
 *$py.class
@@ -20,41 +33,51 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.ruff_cache/
 
-# Virtual environments
-.env
-.venv
-env/
+# Virtual Environments
+.venv/
 venv/
 ENV/
+env/
 env.bak/
 venv.bak/
 
-# Environment files - NEVER commit secrets
-.env
-.env.*
-!.env.example
-
-# Node / Frontend
-frontend/node_modules/
+# Node & Frontend
 node_modules/
+frontend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+dist/
 frontend/dist/
 frontend/dist-ssr/
 *.local
 
-# Testing and coverage
+# Testing, Coverage & Profiling
 .pytest_cache/
+backend/.pytest_cache/
 .coverage
 htmlcov/
+coverage/
 coverage.xml
 *.cover
 .hypothesis/
-backend/.pytest_cache/
+
+# Database dumps & local scratch
+*.sqlite3
+*.db
+backend/*.db
+*.dump
+*.sql.gz
+*.bak
+scratch/
+
+# Logs
+*.log
+logs/
 
 # IDE & Editor
 .vscode/
@@ -64,12 +87,4 @@ backend/.pytest_cache/
 *~
 .DS_Store
 Thumbs.db
-
-# Database / SQLite scratch
-*.sqlite3
-*.db
-backend/*.db
-
-# Logs
-*.log
-logs/
+Desktop.ini

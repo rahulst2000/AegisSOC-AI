@@ -1,8 +1,8 @@
 # AegisSOC AI
 
-> **Evidence-Grounded Autonomous Security Operations, Adversary Validation & Continuous Security Improvement Platform**
+> **Evidence-Grounded Security Operations Platform with AI-Assisted Investigation & Controlled Response**
 
-[![CI Status](https://github.com/Rahul/AegisSOC/actions/workflows/ci.yml/badge.svg)](https://github.com/Rahul/AegisSOC/actions)
+[![CI Status](https://github.com/rahulst2000/AegisSOC-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/rahulst2000/AegisSOC-AI/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/Framework-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
@@ -81,7 +81,8 @@ docker compose up -d --build
 ```
 - Frontend: `http://localhost:3000`
 - Backend API Docs: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/health`
+- Health check (liveness): `http://localhost:8000/healthz`
+- Health check (detailed): `http://localhost:8000/health`
 
 ### 5.2 Native Local Development
 
@@ -138,8 +139,9 @@ npm run test
 | **Phase 5B** | Advanced Security Intelligence | **VERIFIED** | SecurityState(t), Attack Graph, Trajectory, GRC |
 
 ### Test & Security Assurance Summary
-- **Backend Tests**: **130 passed** (0 failures, 100% passing across functional, isolation, and benchmark suites).
+- **Backend Tests**: **132 passed** (0 failures, 100% passing across functional, isolation, and benchmark suites).
 - **Frontend Tests**: **3 passed** (`vitest run`).
+- **Live Verification**: **35/35 stages verified** (34 passed, 1 restricted by safety policy).
 - **Production Smoke Tests**: **100% passed** (`scripts/production_smoke_test.py`).
 - **Static Analysis & SAST**: **0 Medium/High Issues** (`bandit -r app -ll`).
 - **Dependency Vulnerabilities**: **0 Known CVEs** (`pip-audit -r requirements.txt`).
@@ -147,9 +149,11 @@ npm run test
 
 ---
 
-## 8. Verification Report & Compliance
+## 8. Verification Reports & Live Documentation
 
 For the comprehensive, evidence-grounded release scorecard, test matrix, defect register, and audit findings, consult:
+- [`docs/LIVE_DEPLOYMENT_VERIFICATION.md`](file:///c:/Users/Rahul/OneDrive/Desktop/AegisSOC/docs/LIVE_DEPLOYMENT_VERIFICATION.md)
+- [`docs/LIVE_FEATURE_ACCEPTANCE.md`](file:///c:/Users/Rahul/OneDrive/Desktop/AegisSOC/docs/LIVE_FEATURE_ACCEPTANCE.md)
 - [`docs/FINAL_PROJECT_VERIFICATION.md`](file:///c:/Users/Rahul/OneDrive/Desktop/AegisSOC/docs/FINAL_PROJECT_VERIFICATION.md)
 - [`docs/ARCHITECTURE.md`](file:///c:/Users/Rahul/OneDrive/Desktop/AegisSOC/docs/ARCHITECTURE.md)
 - [`docs/SECURITY_MODEL.md`](file:///c:/Users/Rahul/OneDrive/Desktop/AegisSOC/docs/SECURITY_MODEL.md)

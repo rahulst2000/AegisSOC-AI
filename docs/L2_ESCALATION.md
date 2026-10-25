@@ -2,7 +2,7 @@
 
 ## 1. Overview & Escalation Philosophy
 
-Autonomous SOC systems must recognize when an incident exceeds Tier-1 analytical boundaries or automated playbook remit. In AegisSOC AI, when complex attack dynamics are detected, the system does not fail or lose state; instead, it packages all forensic telemetry into an authoritative **Tier-2 (L2) Escalation Package** and assigns it to Senior Security Operations staff.
+AI-assisted SOC systems must recognize when an incident exceeds Tier-1 analytical boundaries or automated playbook remit. In AegisSOC AI, when complex attack dynamics are detected, the system does not fail or lose state; instead, it packages all forensic telemetry into an authoritative **Tier-2 (L2) Escalation Package** and assigns it to Senior Security Operations staff.
 
 ```
 Trigger Condition Detected
