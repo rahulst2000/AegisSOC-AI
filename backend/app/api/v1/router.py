@@ -9,6 +9,7 @@ from app.api.v1.detections import router as detections_router
 from app.api.v1.events import router as events_router
 from app.api.v1.health import router as health_router
 from app.api.v1.incidents import router as incidents_router
+from app.api.v1.intelligence import router as intelligence_router
 from app.api.v1.rules import router as rules_router
 from app.api.v1.security_improvement import router as security_improvement_router
 from app.api.v1.tenants import router as tenants_router
@@ -27,3 +28,4 @@ api_v1_router.include_router(rules_router)
 api_v1_router.include_router(actions_router)
 api_v1_router.include_router(adversary_router)
 api_v1_router.include_router(security_improvement_router)
+api_v1_router.include_router(intelligence_router)

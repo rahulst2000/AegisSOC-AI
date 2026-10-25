@@ -11,10 +11,6 @@ from app.adversary.models import AdversaryAssessment, AssessmentResult
 from app.adversary.scenarios import get_scenario
 from app.adversary.scope import validate_assessment_scope
 from app.core.logging import logger
-from app.correlation.correlator import Correlator
-from app.detection.engine import DetectionEngine
-from app.investigation.investigator import run_investigation
-from app.models.incident import Incident
 from app.playbooks.executor import approve_action_request, create_action_request, execute_approved_action
 from app.services.audit_service import log_audit_event
 
@@ -27,6 +23,11 @@ async def execute_adversary_assessment(
     user_role: str = "SOC_L2_LEAD",
     assessment: AdversaryAssessment | None = None,
 ) -> AssessmentResult:
+    from app.correlation.correlator import Correlator
+    from app.detection.engine import DetectionEngine
+    from app.investigation.investigator import run_investigation
+    from app.models.incident import Incident
+
     """
     Executes a controlled, evidence-grounded adversary validation assessment.
     Enforces authorized scope, executes safe simulation scenario, evaluates detection,

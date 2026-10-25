@@ -4,7 +4,7 @@ from typing import Any
 PROHIBITED_CONTAINMENT_IPS = {
     "127.0.0.1",
     "::1",
-    "0.0.0.0",
+    "0.0.0.0",  # nosec: B104
     "255.255.255.255",
 }
 

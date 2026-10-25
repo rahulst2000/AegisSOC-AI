@@ -135,3 +135,11 @@ def compile_sigma_rule(raw_yaml: str, tenant_id: uuid.UUID | None = None) -> dic
     }
 
     return compiled_rule
+
+
+class SigmaCompiler:
+    """Compiler interface for Sigma YAML detection rules."""
+
+    @staticmethod
+    def compile_rule_from_yaml(raw_yaml: str, tenant_id: uuid.UUID | None = None) -> dict[str, Any]:
+        return compile_sigma_rule(raw_yaml, tenant_id)

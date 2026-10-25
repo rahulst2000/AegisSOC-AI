@@ -388,3 +388,125 @@ export interface SecurityPostureReport {
   remediation_success_rate: number;
 }
 
+// ==========================================
+// Phase 5B: Advanced Security Intelligence
+// ==========================================
+
+export interface SecurityStateRecord {
+  id: string;
+  tenant_id: string;
+  state_hash: string;
+  risk_score: number;
+  security_posture: string;
+  active_incidents_count: number;
+  active_alerts_count: number;
+  monitored_entities: Record<string, any>;
+  timestamp: string;
+}
+
+export interface AttackTrajectoryStage {
+  stage: string;
+  timestamp: string;
+  evidence_event_ids: string[];
+}
+
+export interface AttackTrajectoryReport {
+  incident_id: string;
+  current_stage: string;
+  predicted_next_stage: string;
+  prediction_confidence: number;
+  observed_progression: AttackTrajectoryStage[];
+  recommended_containment_actions: string[];
+}
+
+export interface AttackGraphNode {
+  id: string;
+  type: string;
+  label: string;
+  properties: Record<string, any>;
+}
+
+export interface AttackGraphEdge {
+  source: string;
+  target: string;
+  relationship: string;
+  evidence_ref?: string;
+  timestamp?: string;
+}
+
+export interface AttackGraphResponse {
+  tenant_id: string;
+  nodes: AttackGraphNode[];
+  edges: AttackGraphEdge[];
+  generated_at: string;
+}
+
+export interface WhyNowReport {
+  incident_id: string;
+  what_changed: string[];
+  why_it_matters: string;
+  evidence_event_ids: string[];
+  confidence: number;
+  timestamp: string;
+}
+
+export interface CounterfactualResult {
+  incident_id: string;
+  current_state: string;
+  action_simulated: string;
+  predicted_state: string;
+  risk_change: number;
+  business_impact: string;
+  assumptions: string[];
+  confidence: number;
+  simulated_at: string;
+}
+
+export interface BlastRadiusReport {
+  root_asset_id: string;
+  total_affected_assets: number;
+  affected_assets: string[];
+  propagation_depth: number;
+  critical_path: string[];
+}
+
+export interface ThreatIntelResult {
+  indicator_type: string;
+  indicator_value: string;
+  threat_score: number;
+  is_malicious: boolean;
+  category: string;
+  source_provider: string;
+  confidence: number;
+  hybrid_evaluation: {
+    final_risk: number;
+    explanation: string;
+    action_advisory: string;
+  };
+}
+
+export interface PostureDomainScore {
+  domain: string;
+  score: number;
+  weight: number;
+  status: string;
+  evidence_count: number;
+}
+
+export interface ExecutivePostureResponse {
+  tenant_id: string;
+  overall_posture_score: number;
+  assurance_level: string;
+  domains: PostureDomainScore[];
+  last_assessed: string;
+}
+
+export interface GrcControlItem {
+  control_id: string;
+  framework: string;
+  title: string;
+  status: string;
+  mitre_mappings: string[];
+  evidence_count: number;
+}
+

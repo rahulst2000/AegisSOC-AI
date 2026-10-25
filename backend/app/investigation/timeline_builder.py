@@ -1,12 +1,20 @@
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.correlation.incident_builder import ensure_utc
 from app.models.event import SecurityEvent
 from app.models.evidence import Evidence
+
+
+def ensure_utc(dt: datetime | None) -> datetime:
+    if dt is None:
+        return datetime.now(UTC)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
 
 
 async def build_investigation_timeline(

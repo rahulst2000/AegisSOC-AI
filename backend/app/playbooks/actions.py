@@ -13,7 +13,7 @@ class MockFirewallAdapter:
         }
 
         # Simulate failure if requested
-        if "FAIL_SIMULATION" in ip_address or ip_address == "0.0.0.0":
+        if "FAIL_SIMULATION" in ip_address or ip_address == "0.0.0.0":  # nosec: B104
             after_state = {
                 "target": ip_address,
                 "traffic_status": "ALLOWED",

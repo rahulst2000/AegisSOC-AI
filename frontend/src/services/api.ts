@@ -376,6 +376,60 @@ class ApiService {
       method: "POST",
     });
   }
+
+  // Phase 5B: Advanced Security Intelligence
+  async getSecurityState(): Promise<import("../types").SecurityStateRecord> {
+    return this.request<import("../types").SecurityStateRecord>("/intelligence/state");
+  }
+
+  async getAttackTrajectory(incidentId: string): Promise<import("../types").AttackTrajectoryReport> {
+    return this.request<import("../types").AttackTrajectoryReport>(`/intelligence/trajectory/${incidentId}`);
+  }
+
+  async getAttackGraph(): Promise<import("../types").AttackGraphResponse> {
+    return this.request<import("../types").AttackGraphResponse>("/intelligence/graph");
+  }
+
+  async getWhyNow(incidentId: string): Promise<import("../types").WhyNowReport> {
+    return this.request<import("../types").WhyNowReport>(`/intelligence/why-now/${incidentId}`);
+  }
+
+  async runCounterfactual(incidentId: string, scenario: string): Promise<import("../types").CounterfactualResult> {
+    return this.request<import("../types").CounterfactualResult>("/intelligence/counterfactual", {
+      method: "POST",
+      body: JSON.stringify({ incident_id: incidentId, simulated_action: scenario }),
+    });
+  }
+
+  async getBlastRadius(assetId: string): Promise<import("../types").BlastRadiusReport> {
+    return this.request<import("../types").BlastRadiusReport>(`/intelligence/digital-twin/blast-radius/${assetId}`);
+  }
+
+  async getThreatIntel(indicatorType: string, indicatorValue: string): Promise<import("../types").ThreatIntelResult> {
+    return this.request<import("../types").ThreatIntelResult>("/intelligence/threat-intel/lookup", {
+      method: "POST",
+      body: JSON.stringify({ indicator_type: indicatorType, indicator_value: indicatorValue }),
+    });
+  }
+
+  async getExecutivePosture(): Promise<import("../types").ExecutivePostureResponse> {
+    return this.request<import("../types").ExecutivePostureResponse>("/intelligence/posture/executive");
+  }
+
+  async getGrcControls(): Promise<import("../types").GrcControlItem[]> {
+    return this.request<import("../types").GrcControlItem[]>("/intelligence/grc/controls");
+  }
+
+  async getImprovementCandidates(): Promise<any[]> {
+    return this.request<any[]>("/intelligence/continuous-improvement/candidates");
+  }
+
+  async reviewImprovementCandidate(candidateId: string, decision: "APPROVED" | "REJECTED"): Promise<any> {
+    return this.request<any>(`/intelligence/continuous-improvement/candidates/${candidateId}/review`, {
+      method: "POST",
+      body: JSON.stringify({ decision }),
+    });
+  }
 }
 
 export const api = new ApiService();

@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.investigation.evidence_collector import EvidenceCollector
 from app.investigation.models import Investigation
 from app.models.incident import Incident
 from app.playbooks.models import ActionRequest
@@ -59,6 +58,8 @@ async def build_l2_investigation_package(
     actions = act_res.scalars().all()
 
     # 4. Fetch timeline
+    from app.investigation.evidence_collector import EvidenceCollector
+
     collector = EvidenceCollector(db, tenant_id)
     timeline = await collector.get_incident_timeline(incident_id)
 

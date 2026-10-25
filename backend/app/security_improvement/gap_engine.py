@@ -63,7 +63,7 @@ class GapEngine:
                     target=target,
                     severity="MEDIUM",
                     summary=f"Detection occurred for {technique} on {target}, but correlation engine failed to link alert to an incident.",
-                    recommendation=f"Update correlation window or entity aggregation logic for asset {target} and technique {technique}.",
+                    recommendation=f"Adjust correlation window or entity aggregation logic for asset {target} and technique {technique}.",
                     assessment_id=assessment_id_str,
                     scenario_id=scenario,
                 )

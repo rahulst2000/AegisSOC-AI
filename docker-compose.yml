@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-aegissoc_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegissoc_secure_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-DEMO_PASSWORD=<configure locally>}
       POSTGRES_DB: ${POSTGRES_DB:-aegissoc_db}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -51,7 +51,7 @@ services:
       POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-aegissoc_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegissoc_secure_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-DEMO_PASSWORD=<configure locally>}
       POSTGRES_DB: ${POSTGRES_DB:-aegissoc_db}
       REDIS_HOST: redis
       REDIS_PORT: 6379

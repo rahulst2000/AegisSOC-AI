@@ -9,6 +9,7 @@ import {
   Sliders,
   Crosshair,
   TrendingUp,
+  Brain,
 } from "lucide-react";
 
 export type NavTab =
@@ -17,6 +18,7 @@ export type NavTab =
   | "rules"
   | "adversary"
   | "improvement"
+  | "intelligence"
   | "assets"
   | "events"
   | "docs";
@@ -43,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: "rules" as NavTab, label: "Detection Rules", icon: <Sliders size={18} /> },
     { id: "adversary" as NavTab, label: "Adversary Validation", icon: <Crosshair size={18} /> },
     { id: "improvement" as NavTab, label: "Security Improvement", icon: <TrendingUp size={18} /> },
+    { id: "intelligence" as NavTab, label: "Security Intelligence", icon: <Brain size={18} /> },
     { id: "assets" as NavTab, label: "Asset Inventory", icon: <Server size={18} /> },
     { id: "events" as NavTab, label: "Security Events", icon: <Activity size={18} /> },
     { id: "docs" as NavTab, label: "Architecture & Docs", icon: <FileText size={18} /> },

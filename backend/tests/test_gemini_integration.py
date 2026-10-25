@@ -32,7 +32,7 @@ from app.ai.schemas import AIActionRecommendation, AIAnalysisResult, AIFinding, 
 from app.ai.validator import detect_prompt_injection, validate_and_sanitize_ai_result
 from app.main import app
 
-MOCK_SECRET_KEY = "AIzaSyFakeKeyForTestingPurposeOnly12345"
+MOCK_SECRET_KEY = "test-mock-fake-gemini-key-for-testing-only-12345"
 
 
 # ==============================================================================
@@ -456,8 +456,9 @@ def test_backend_env_is_git_ignored():
 
 def test_backend_env_example_has_only_placeholders():
     """Verify that backend/.env.example contains only placeholders, no real secrets."""
-    assert os.path.exists("backend/.env.example")
-    with open("backend/.env.example", encoding="utf-8") as f:
+    path = "backend/.env.example" if os.path.exists("backend/.env.example") else ".env.example"
+    assert os.path.exists(path)
+    with open(path, encoding="utf-8") as f:
         content = f.read()
 
     assert "GEMINI_API_KEY=your_gemini_api_key_here" in content

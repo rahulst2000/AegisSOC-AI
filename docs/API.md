@@ -30,7 +30,7 @@ Provisions an initial organization tenant and administrative user.
   {
     "organization_name": "Lockheed Cyber Ops",
     "email": "lead@lockheed.internal",
-    "password": "SecurePassword123!",
+    "password": "DEMO_PASSWORD=<configure locally>",
     "role": "TENANT_ADMIN"
   }
   ```
@@ -42,7 +42,7 @@ Authenticates existing users with constant-time password verification.
   ```json
   {
     "email": "lead@lockheed.internal",
-    "password": "SecurePassword123!"
+    "password": "DEMO_PASSWORD=<configure locally>"
   }
   ```
 - **Response (200 OK)**: Returns JWT bearer tokens.

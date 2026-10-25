@@ -1,6 +1,17 @@
 from app.adversary.models import AdversaryAssessment, AssessmentResult
 from app.detection.models import DetectionResult, DetectionRule
 from app.escalation.models import L2Escalation
+from app.intelligence.models import (
+    AttackGraphSnapshot,
+    AttackTrajectoryRecord,
+    ContinuousAdversarySchedule,
+    DetectionImprovementCandidate,
+    GrcControlMapping,
+    OrganizationalSecurityMemory,
+    SecurityStateSnapshot,
+    SecurityStateTransition,
+    ThreatIntelIndicator,
+)
 from app.investigation.models import Investigation, InvestigationFinding, InvestigationHypothesis
 from app.models.alert import Alert
 from app.models.asset import Asset
@@ -36,4 +47,13 @@ __all__ = [
     "AssessmentResult",
     "SecurityFinding",
     "RemediationAction",
+    "SecurityStateSnapshot",
+    "SecurityStateTransition",
+    "AttackTrajectoryRecord",
+    "AttackGraphSnapshot",
+    "OrganizationalSecurityMemory",
+    "ThreatIntelIndicator",
+    "ContinuousAdversarySchedule",
+    "GrcControlMapping",
+    "DetectionImprovementCandidate",
 ]

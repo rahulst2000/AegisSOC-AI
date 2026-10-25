@@ -93,6 +93,9 @@ class MitreCoverageItem(BaseModel):
     verification: str
     overall: str
 
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
 
 class SecurityPostureScore(BaseModel):
     category: str

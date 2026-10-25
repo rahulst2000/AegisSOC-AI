@@ -12,6 +12,7 @@ import { DocsPage } from "./pages/DocsPage";
 import RulesPage from "./pages/RulesPage";
 import { AdversaryPage } from "./pages/AdversaryPage";
 import { SecurityImprovementPage } from "./pages/SecurityImprovementPage";
+import { IntelligencePage } from "./pages/IntelligencePage";
 
 export const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -148,6 +149,10 @@ export const App: React.FC = () => {
 
           {activeTab === "improvement" && (
             <SecurityImprovementPage />
+          )}
+
+          {activeTab === "intelligence" && (
+            <IntelligencePage incidents={incidents} />
           )}
 
           {activeTab === "assets" && (

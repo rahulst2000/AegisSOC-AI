@@ -109,7 +109,7 @@ async def test_live_synthetic_investigation_pipeline(db_session: AsyncSession):
     await db_session.flush()
 
     # 4. Configure Gemini AI Provider with structured synthetic response
-    gemini_provider = GeminiAIProvider(api_key="AIzaSyLiveSyntheticTestMockKey123")
+    gemini_provider = GeminiAIProvider(api_key="test-live-synthetic-mock-key-12345")
 
     mock_gemini_analysis = AIAnalysisResult(
         executive_summary=(

@@ -1,7 +1,7 @@
 # AegisSOC AI — System Architecture Document
 
 ## 1. System Overview
-**AegisSOC AI** is an evidence-grounded autonomous security operations, adversary validation, and continuous security improvement platform. Built on zero-trust principles and defensive cybersecurity best practices, AegisSOC centralizes multi-source telemetry, enforces cryptographic tenant boundary isolation, tracks security assets, and facilitates forensic incident response.
+**AegisSOC AI** is an evidence-grounded autonomous security operations, adversary validation, and continuous security improvement platform. Built on zero-trust principles and defensive cybersecurity best practices, AegisSOC centralizes multi-source telemetry, enforces strong tenant isolation, tracks security assets, and facilitates forensic incident response.
 
 ```mermaid
 graph TD

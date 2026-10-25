@@ -307,19 +307,21 @@ async def test_redis_failure_fallback():
     Verifies zero event loss: If Redis is unavailable, events route to in-memory fallback queue
     and health status reflects fallback state.
     """
+    from unittest.mock import patch
+
     _in_memory_event_queue.clear()
     test_event_id = str(uuid.uuid4())
     test_tenant_id = str(uuid.uuid4())
 
-    # Enqueue event (in test environment, Redis server is not running on localhost:6379)
-    await enqueue_event_for_detection(test_event_id, test_tenant_id)
-    # Even if Redis connect failed, event is preserved in fallback queue
-    health = await get_queue_health()
-    assert isinstance(health, dict)
-    assert health["fallback_pending_events"] >= 1
+    # Simulate Redis failure so fallback queue activates regardless of whether Redis is running
+    with patch("app.workers.queue.get_redis_client", return_value=None):
+        await enqueue_event_for_detection(test_event_id, test_tenant_id)
+        health = await get_queue_health()
+        assert isinstance(health, dict)
+        assert health["fallback_pending_events"] >= 1
 
-    # Dequeue verifies zero loss
-    item = await dequeue_event()
-    assert item is not None
-    assert item["event_id"] == test_event_id
-    assert item["tenant_id"] == test_tenant_id
+        # Dequeue verifies zero loss
+        item = await dequeue_event()
+        assert item is not None
+        assert item["event_id"] == test_event_id
+        assert item["tenant_id"] == test_tenant_id

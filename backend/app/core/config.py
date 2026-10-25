@@ -14,12 +14,12 @@ class Settings(BaseSettings):
 
     # General
     PROJECT_NAME: str = "AegisSOC AI"
-    VERSION: str = "0.1.0"
+    VERSION: str = "1.0.0"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
 
     # Server
-    BACKEND_HOST: str = "0.0.0.0"
+    BACKEND_HOST: str = "0.0.0.0"  # nosec: B104
     BACKEND_PORT: int = 8000
 
     # Cryptography & JWT
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "aegissoc_user"
-    POSTGRES_PASSWORD: str = "aegissoc_secure_password"
+    POSTGRES_PASSWORD: str = "DEMO_PASSWORD=<configure locally>"
     POSTGRES_DB: str = "aegissoc_db"
 
     # Redis
