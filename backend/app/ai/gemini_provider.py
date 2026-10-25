@@ -19,8 +19,12 @@ import os
 import re
 from typing import Any
 
-from google import genai
-from google.genai import types
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    genai = None  # type: ignore
+    types = None  # type: ignore
 
 from app.ai.prompts import INVESTIGATION_SYSTEM_PROMPT, format_investigation_prompt
 from app.ai.provider import AIProvider, DeterministicAIProvider
@@ -55,7 +59,7 @@ class GeminiAIProvider(AIProvider):
         self.max_retries: int = max_retries if max_retries is not None else settings.AI_MAX_RETRIES
         self.max_input_chars: int = settings.AI_MAX_INPUT_CHARS
         self.max_output_tokens: int = settings.AI_MAX_OUTPUT_TOKENS
-        self._client: genai.Client | None = None
+        self._client: Any = None
 
     def __repr__(self) -> str:
         # Never expose API key in object representation
@@ -65,24 +69,24 @@ class GeminiAIProvider(AIProvider):
         return self.__repr__()
 
     def is_configured(self) -> bool:
-        """Returns True if a non-empty Gemini API key is configured."""
-        return bool(self._api_key)
+        """Returns True if a non-empty Gemini API key is configured and SDK is loaded."""
+        return bool(self._api_key and genai is not None)
 
     def get_status(self) -> dict[str, Any]:
         """Safe status dictionary without secret leakage."""
         return {
             "provider": "gemini",
             "model": self.model,
-            "gemini_provider_configured": "YES",
+            "gemini_provider_configured": "YES" if genai is not None else "NO",
             "api_key_configured": "YES" if self.is_configured() else "NO",
             "deterministic_fallback_ready": "YES",
             "timeout_seconds": self.timeout,
             "max_retries": self.max_retries,
         }
 
-    def _get_client(self) -> genai.Client | None:
+    def _get_client(self) -> Any:
         """Lazily initialize genai.Client using the configured secret key."""
-        if not self.is_configured():
+        if not self.is_configured() or genai is None:
             return None
         if self._client is None:
             self._client = genai.Client(api_key=self._api_key)
@@ -148,7 +152,7 @@ class GeminiAIProvider(AIProvider):
         while retries <= self.max_retries:
             try:
                 client = self._get_client()
-                if client is None:
+                if client is None or types is None:
                     return await self.fallback.analyze(context)
 
                 config = types.GenerateContentConfig(

@@ -59,7 +59,8 @@ async def create_action_request(
         result={},
     )
     db.add(action)
-    await db.flush()
+    await db.commit()
+    await db.refresh(action)
 
     await log_audit_event(
         db=db,
@@ -122,7 +123,8 @@ async def approve_action_request(
     action.approval_status = "APPROVED"
     action.approved_by = user_id
     action.approved_at = datetime.now(UTC)
-    await db.flush()
+    await db.commit()
+    await db.refresh(action)
 
     await log_audit_event(
         db=db,
@@ -164,7 +166,8 @@ async def reject_action_request(
     action.approved_by = user_id
     action.approved_at = datetime.now(UTC)
     action.rejection_reason = reason
-    await db.flush()
+    await db.commit()
+    await db.refresh(action)
 
     await log_audit_event(
         db=db,
@@ -299,5 +302,6 @@ async def execute_approved_action(
         )
         db.add(fail_alert)
 
-    await db.flush()
+    await db.commit()
+    await db.refresh(action)
     return action

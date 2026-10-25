@@ -4,6 +4,7 @@ from app.api.v1.actions import router as actions_router
 from app.api.v1.adversary import router as adversary_router
 from app.api.v1.alerts import router as alerts_router
 from app.api.v1.assets import router as assets_router
+from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.detections import router as detections_router
 from app.api.v1.events import router as events_router
@@ -29,3 +30,4 @@ api_v1_router.include_router(actions_router)
 api_v1_router.include_router(adversary_router)
 api_v1_router.include_router(security_improvement_router)
 api_v1_router.include_router(intelligence_router)
+api_v1_router.include_router(audit_router)

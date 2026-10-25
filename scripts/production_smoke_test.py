@@ -92,7 +92,17 @@ async def run_smoke_tests():
         data = r.json()
         assert data["status"] == "healthy"
         print(f"    [+] Health Probe: 200 OK — service: {data.get('service')} (version {data.get('version')})")
-        results.append(("Health Probe", "PASS"))
+
+        r_hz = await client.get("/healthz")
+        assert r_hz.status_code == 200, f"Expected 200 for /healthz, got {r_hz.status_code}"
+        assert r_hz.json()["status"] == "ok"
+        print("    [+] Liveness Probe (/healthz): 200 OK — status: ok")
+
+        r_rz = await client.get("/readyz")
+        assert r_rz.status_code == 200, f"Expected 200 for /readyz, got {r_rz.status_code}"
+        assert r_rz.json()["status"] == "ready"
+        print("    [+] Readiness Probe (/readyz): 200 OK — database: connected")
+        results.append(("Health & Liveness Probes", "PASS"))
 
         # 2. Security Headers Verification
         print("\n[*] 2. Testing Production Security Headers...")

@@ -24,3 +24,22 @@ async def test_api_v1_health_endpoint(client: AsyncClient):
     assert data["status"] == "healthy"
     assert data["database"] == "connected"
     assert "service" in data
+
+
+@pytest.mark.asyncio
+async def test_healthz_liveness_endpoint(client: AsyncClient):
+    """Verifies that the /healthz liveness endpoint returns 200 OK immediately."""
+    response = await client.get("/healthz")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_readyz_readiness_endpoint(client: AsyncClient):
+    """Verifies that the /readyz readiness endpoint returns 200 OK and connected database."""
+    response = await client.get("/readyz")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ready"
+    assert data["database"] == "connected"

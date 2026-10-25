@@ -53,7 +53,7 @@ async def create_assessment_endpoint(
             payload=payload,
         )
         return assessment
-    except ValidationException as exc:
+    except (ValidationException, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 

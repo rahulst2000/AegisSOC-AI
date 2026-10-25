@@ -1,8 +1,11 @@
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.api.v1.router import api_v1_router
 from app.core.config import settings
@@ -25,10 +28,17 @@ async def lifespan(app: FastAPI):
         extra={"environment": settings.ENVIRONMENT},
     )
 
-    # Initialize tables (safe in dev / testing; in prod Alembic handles schema)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database schemas verified.")
+    # In development/test, initialize tables safely with a timeout; in production Alembic manages schema
+    if settings.ENVIRONMENT.lower() != "production":
+        try:
+            async with asyncio.timeout(5.0):
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database schemas verified.")
+        except Exception as exc:
+            logger.warning("Database schema auto-creation deferred or non-blocking: %s", exc)
+    else:
+        logger.info("Production mode active: schema migrations managed via Alembic.")
 
     yield
 
@@ -78,6 +88,27 @@ async def root_health():
         "environment": settings.ENVIRONMENT,
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
+
+@app.get("/healthz", status_code=status.HTTP_200_OK, tags=["Health"])
+async def liveness_probe():
+    """Ultra-lightweight liveness probe for orchestrators and Render healthcheck."""
+    return {"status": "ok"}
+
+
+@app.get("/readyz", status_code=status.HTTP_200_OK, tags=["Health"])
+async def readiness_probe():
+    """Lightweight readiness probe verifying DB connectivity via SELECT 1."""
+    try:
+        async with asyncio.timeout(2.0):
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+        return {"status": "ready", "database": "connected"}
+    except Exception as exc:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "degraded", "database": f"unavailable: {exc}"},
+        )
 
 
 # Mount API v1

@@ -122,7 +122,7 @@ async def approve_action_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Approves an action request. Enforces role authorization and human approval."""
-    user_role = ctx.roles[0] if ctx.roles else "SOC_L1_ANALYST"
+    user_role = ctx.role or "SOC_L1"
     reason = payload.reason if payload else None
     try:
         return await approve_action_request(
@@ -151,7 +151,7 @@ async def reject_action_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Rejects an action request with mandatory justification."""
-    user_role = ctx.roles[0] if ctx.roles else "SOC_L1_ANALYST"
+    user_role = ctx.role or "SOC_L1"
     try:
         return await reject_action_request(
             db=db,

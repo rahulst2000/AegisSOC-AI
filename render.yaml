@@ -1,0 +1,37 @@
+# ==============================================================================
+# AegisSOC AI — Render Infrastructure as Code Blueprint
+# ==============================================================================
+
+services:
+  - type: web
+    name: aegissoc-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: standard
+    region: oregon
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: PROJECT_NAME
+        value: "AegisSOC AI"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_FORMAT
+        value: json
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: "https://aegissoc.pages.dev,http://localhost:3000,http://localhost:5173"
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_MODEL
+        value: gemini-2.5-flash

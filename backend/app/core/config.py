@@ -1,6 +1,6 @@
 import os
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +20,11 @@ class Settings(BaseSettings):
 
     # Server
     BACKEND_HOST: str = "0.0.0.0"  # nosec: B104
-    BACKEND_PORT: int = 8000
+    BACKEND_PORT: int = Field(
+        default=8000,
+        validation_alias=AliasChoices("PORT", "BACKEND_PORT"),
+        description="Backend listening port",
+    )
 
     # Cryptography & JWT
     SECRET_KEY: str = Field(

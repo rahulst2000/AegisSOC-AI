@@ -1,7 +1,11 @@
-# AegisSOC AI Backend - Secure Containerfile
+# ==============================================================================
+# AegisSOC AI Backend - Multi-Stage Hardened Containerfile
+# ==============================================================================
+
+# Stage 1: Builder stage with compilation dependencies & isolated virtualenv
 FROM python:3.12-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -11,26 +15,39 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Create virtual environment in /opt/venv
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Final minimal production stage
+# Upgrade pip safely and install dependencies into /opt/venv
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ==============================================================================
+# Stage 2: Minimal runtime image
+# ==============================================================================
 FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/install/bin:${PATH}" \
+    VIRTUAL_ENV="/opt/venv" \
+    PATH="/opt/venv/bin:${PATH}" \
     PYTHONPATH="/app"
 
+# Install only essential runtime system packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -u 10001 -m -s /bin/bash appuser
 
-COPY --from=builder /install /install
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
+
+# Copy application source code
 COPY app /app/app
 
 # Drop root privileges for defense in depth
@@ -39,6 +56,6 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/healthz || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
