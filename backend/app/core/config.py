@@ -116,6 +116,36 @@ class Settings(BaseSettings):
             url = self.DATABASE_URL
             if url.startswith("postgresql://"):
                 url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+            # asyncpg does not accept libpq's sslmode URL parameter.
+            # SSL is configured through connect_args in db/session.py.
+            if url.startswith("postgresql+asyncpg://"):
+                from urllib.parse import (
+                    parse_qsl,
+                    urlencode,
+                    urlsplit,
+                    urlunsplit,
+                )
+
+                parts = urlsplit(url)
+                query_params = [
+                    (key, value)
+                    for key, value in parse_qsl(
+                        parts.query,
+                        keep_blank_values=True,
+                    )
+                    if key.lower() != "sslmode"
+                ]
+                url = urlunsplit(
+                    (
+                        parts.scheme,
+                        parts.netloc,
+                        parts.path,
+                        urlencode(query_params),
+                        parts.fragment,
+                    )
+                )
+
             return url
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
