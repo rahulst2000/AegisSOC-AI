@@ -4,10 +4,13 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Ensure backend app is on sys.path
+# Ensure backend app is on sys.path in both workspace root and container environments
 backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
-if backend_path not in sys.path:
+if os.path.isdir(backend_path) and backend_path not in sys.path:
     sys.path.insert(0, backend_path)
+parent_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if parent_path not in sys.path:
+    sys.path.insert(0, parent_path)
 
 from app.core.config import settings
 from app.db.base import Base
@@ -22,7 +25,19 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    return settings.get_sync_database_url()
+    x_args = context.get_x_argument(as_dictionary=True)
+    url = (
+        x_args.get("url")
+        or os.getenv("DATABASE_URL")
+        or settings.get_sync_database_url()
+    )
+    if url.startswith("postgresql+asyncpg://"):
+        url = url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return url
 
 
 def run_migrations_offline() -> None:
