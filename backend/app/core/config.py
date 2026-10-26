@@ -117,7 +117,8 @@ class Settings(BaseSettings):
             if url.startswith("postgresql://"):
                 url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-            # asyncpg does not accept libpq's sslmode URL parameter.
+            # asyncpg does not accept libpq-specific URL parameters such as
+            # sslmode and channel_binding.
             # SSL is configured through connect_args in db/session.py.
             if url.startswith("postgresql+asyncpg://"):
                 from urllib.parse import (
@@ -127,6 +128,7 @@ class Settings(BaseSettings):
                     urlunsplit,
                 )
 
+                _UNSUPPORTED_PG_PARAMS = {"sslmode", "channel_binding"}
                 parts = urlsplit(url)
                 query_params = [
                     (key, value)
@@ -134,7 +136,7 @@ class Settings(BaseSettings):
                         parts.query,
                         keep_blank_values=True,
                     )
-                    if key.lower() != "sslmode"
+                    if key.lower() not in _UNSUPPORTED_PG_PARAMS
                 ]
                 url = urlunsplit(
                     (
