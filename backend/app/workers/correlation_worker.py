@@ -75,8 +75,11 @@ class CorrelationWorker:
             try:
                 async with session_factory() as session:
                     processed = await self.process_next_detection(session)
-                    if not processed:
-                        await asyncio.sleep(poll_interval)
+                if not processed:
+                    await asyncio.sleep(poll_interval)
+            except asyncio.CancelledError:
+                logger.info("CorrelationWorker received cancellation signal.")
+                break
             except Exception as exc:
                 logger.error(f"Error in CorrelationWorker loop: {exc}", exc_info=True)
                 await asyncio.sleep(poll_interval)

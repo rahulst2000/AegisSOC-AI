@@ -16,7 +16,7 @@ from app.core.middleware import (
     SecurityHeadersMiddleware,
 )
 from app.db.base import Base
-from app.db.session import engine
+from app.db.session import AsyncSessionLocal, engine
 
 
 @asynccontextmanager
@@ -40,10 +40,73 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Production mode active: schema migrations managed via Alembic.")
 
+    # 1. Synchronize baseline detection rules into database
+    try:
+        from app.detection.rule_loader import sync_rules_to_db
+
+        session_factory = getattr(app.state, "session_factory", AsyncSessionLocal)
+        async with session_factory() as session:
+            synced_rules = await sync_rules_to_db(session)
+            logger.info("Synchronized %d baseline detection rules into database.", len(synced_rules))
+    except Exception as exc:
+        logger.error("Failed to synchronize baseline detection rules: %s", exc, exc_info=True)
+
+    # 2. Start background detection and correlation workers
+    if not getattr(app.state, "workers_running", False):
+        try:
+            from app.workers.correlation_worker import CorrelationWorker
+            from app.workers.detection_worker import DetectionWorker
+
+            session_factory = getattr(app.state, "session_factory", AsyncSessionLocal)
+            detection_worker = DetectionWorker()
+            correlation_worker = CorrelationWorker()
+
+            stop_event = asyncio.Event()
+            worker_tasks = [
+                asyncio.create_task(
+                    detection_worker.run_worker_loop(
+                        session_factory=session_factory,
+                        stop_event=stop_event,
+                        poll_interval=1.0,
+                    ),
+                    name="detection_worker_loop",
+                ),
+                asyncio.create_task(
+                    correlation_worker.run_worker_loop(
+                        session_factory=session_factory,
+                        stop_event=stop_event,
+                        poll_interval=1.0,
+                    ),
+                    name="correlation_worker_loop",
+                ),
+            ]
+            app.state.workers_running = True
+            app.state.worker_stop_event = stop_event
+            app.state.worker_tasks = worker_tasks
+            logger.info("Background detection and correlation workers started successfully.")
+        except Exception as exc:
+            logger.error("Failed to initialize background workers: %s", exc, exc_info=True)
+
     yield
 
     # Shutdown
     logger.info(f"Shutting down {settings.PROJECT_NAME}...")
+
+    # Stop background workers cleanly
+    if getattr(app.state, "workers_running", False):
+        logger.info("Signaling background workers to stop...")
+        stop_event = getattr(app.state, "worker_stop_event", None)
+        if stop_event:
+            stop_event.set()
+        tasks = getattr(app.state, "worker_tasks", [])
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        app.state.workers_running = False
+        logger.info("Background workers shut down cleanly.")
+
     await engine.dispose()
     logger.info("Database connections terminated.")
 

@@ -50,6 +50,7 @@ COPY --from=builder /opt/venv /opt/venv
 # Copy application source code and database migrations
 COPY backend/app /app/app
 COPY database /app/database
+COPY detection_rules /app/detection_rules
 
 # Drop root privileges for defense in depth
 USER appuser

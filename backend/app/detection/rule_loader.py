@@ -60,6 +60,10 @@ def load_rules_from_directory(
             candidate_repo = repo_root / "detection_rules"
             if candidate_repo.exists():
                 directory = candidate_repo
+            else:
+                candidate_app = Path(__file__).resolve().parents[2] / "detection_rules"
+                if candidate_app.exists():
+                    directory = candidate_app
 
     if not directory.exists() or not directory.is_dir():
         logger.warning(f"Detection rules directory not found: {directory}")
