@@ -76,6 +76,50 @@ def match_field_value(actual: Any, target: Any, modifier: str | None = None) -> 
         return actual_str.lower() == target_str.lower()
 
 
+CANONICAL_AUTH_FAILURE_VARIANTS = {
+    "AUTH_FAILURE",
+    "SSH_AUTH_FAILURE",
+    "RDP_AUTH_FAILURE",
+    "LOGIN_FAILED",
+    "AUTHENTICATION_FAILURE",
+}
+CANONICAL_AUTH_SUCCESS_VARIANTS = {
+    "AUTH_SUCCESS",
+    "SSH_AUTH_SUCCESS",
+    "RDP_AUTH_SUCCESS",
+    "LOGIN_SUCCESS",
+    "AUTHENTICATION_SUCCESS",
+}
+
+
+def matches_canonical_event_type(actual: Any, target: Any) -> bool:
+    """
+    Checks if an event classification matches a target rule event_type,
+    accounting for canonical authentication variants (e.g. SSH_AUTH_FAILURE -> AUTH_FAILURE).
+    Unrelated event types are strictly compared by exact equality.
+    """
+    if actual is None or target is None:
+        return False
+
+    actual_str = str(actual).strip().upper()
+
+    if isinstance(target, (list, set, tuple)):
+        return any(matches_canonical_event_type(actual_str, item) for item in target)
+
+    target_str = str(target).strip().upper()
+
+    if actual_str == target_str:
+        return True
+
+    if target_str == "AUTH_FAILURE" and actual_str in CANONICAL_AUTH_FAILURE_VARIANTS:
+        return True
+
+    if target_str == "AUTH_SUCCESS" and actual_str in CANONICAL_AUTH_SUCCESS_VARIANTS:
+        return True
+
+    return False
+
+
 def evaluate_selection(event: SecurityEvent, selection_dict: dict[str, Any]) -> bool:
     """
     Evaluates whether an event satisfies all criteria in a selection dictionary.
@@ -94,6 +138,9 @@ def evaluate_selection(event: SecurityEvent, selection_dict: dict[str, Any]) -> 
 
         actual_val = extract_field_value(event, field_name)
         if not match_field_value(actual_val, target_val, modifier):
+            if field_name.lower() == "event_type" and not modifier:
+                if matches_canonical_event_type(actual_val, target_val):
+                    continue
             return False
 
     return True

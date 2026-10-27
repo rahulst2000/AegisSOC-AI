@@ -2,12 +2,14 @@ title: Multiple Authentication Failures from Single Source IP
 id: AEGIS-SIG-MULTI-FAIL-IP
 status: stable
 description: Detects high-volume authentication failures originating from an individual IP address across any service.
-version: 1.0.0
+version: 1.1.0
 logsource:
   category: authentication
 detection:
   selection:
-    event_type: AUTH_FAILURE
+    event_type:
+      - AUTH_FAILURE
+      - SSH_AUTH_FAILURE
   timeframe: 5m
   condition: selection | count() >= 5
 level: medium

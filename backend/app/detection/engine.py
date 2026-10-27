@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.detection.evaluator import evaluate_rule_against_events
+from app.detection.evaluator import evaluate_rule_against_events, matches_canonical_event_type
 from app.detection.evidence import link_event_evidence
 from app.detection.models import DetectionResult, DetectionRule
 from app.detection.registry import global_rule_registry
@@ -90,8 +90,12 @@ class DetectionEngine:
             # Check if any event matches rule's event types (if specified)
             if rule.event_types:
                 rule_types = {t.upper() for t in rule.event_types}
-                # Also allow matching by category/service if event_type matches
-                has_type_match = any(e.event_type.upper() in rule_types for e in events)
+                # Also allow matching by canonical authentication variants (e.g. SSH_AUTH_FAILURE -> AUTH_FAILURE)
+                has_type_match = any(
+                    e.event_type.upper() in rule_types
+                    or any(matches_canonical_event_type(e.event_type, rt) for rt in rule_types)
+                    for e in events
+                )
                 if not has_type_match and "SECURITY_EVENT" not in rule_types:
                     continue
 
