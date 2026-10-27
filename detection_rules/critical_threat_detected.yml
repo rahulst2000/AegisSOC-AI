@@ -1,0 +1,20 @@
+title: Critical Threat Telemetry Detected
+id: AEGIS-SIG-CRITICAL-THREAT
+status: stable
+description: Detects explicitly defined critical threats including LSASS memory dumping attempts, Mimikatz credential execution, and telemetry events with critical severity.
+version: 1.0.0
+logsource:
+  category: security
+detection:
+  selection_threat:
+    event_type:
+      - LSASS_MEMORY_ACCESS_ATTEMPT
+      - MIMIKATZ_EXECUTION
+  selection_critical:
+    severity: CRITICAL
+  condition: selection_threat or selection_critical
+level: critical
+tags:
+  - attack.credential_access
+  - attack.t1003
+  - attack.t1003.001

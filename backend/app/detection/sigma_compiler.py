@@ -102,6 +102,10 @@ def compile_sigma_rule(raw_yaml: str, tenant_id: uuid.UUID | None = None) -> dic
                 else:
                     event_types.add(str(val).upper())
 
+    # If any selection does not constrain event_type, the rule evaluates across general security telemetry
+    if any(isinstance(item, dict) and "event_type" not in item for item in selections.values()):
+        event_types.add("SECURITY_EVENT")
+
     if not event_types:
         if service:
             event_types.add(f"{service}_EVENT")

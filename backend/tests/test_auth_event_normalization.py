@@ -96,7 +96,11 @@ async def test_five_ssh_auth_failures_satisfies_password_spraying(db_session: As
             username=user,
             hostname=target_host,
             raw_event={"failure_reason": "bad_password", "user": user},
-            normalized_event={"event": {"type": "ssh_auth_failure"}, "source": {"ip": attacker_ip}, "user": {"name": user}},
+            normalized_event={
+                "event": {"type": "ssh_auth_failure"},
+                "source": {"ip": attacker_ip},
+                "user": {"name": user},
+            },
         )
         db_session.add(evt)
         events.append(evt)
