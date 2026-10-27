@@ -1,6 +1,12 @@
 # AegisSOC AI
 
-> **Evidence-Grounded Security Operations Platform with AI-Assisted Investigation & Controlled Response**
+> **Evidence-Grounded Autonomous Security Operations, Adversary Validation & Continuous Security Improvement Platform**
+
+**Creator & Owner:** [Rahul S T](https://github.com/rahulst2000)<br/>
+**Repository:** [https://github.com/rahulst2000/AegisSOC-AI](https://github.com/rahulst2000/AegisSOC-AI)<br/>
+**Live Frontend:** [https://aegissoc-ai-1.onrender.com](https://aegissoc-ai-1.onrender.com)<br/>
+**Live Backend API:** [https://aegissoc-ai.onrender.com](https://aegissoc-ai.onrender.com)<br/>
+**API Health Probe:** [https://aegissoc-ai.onrender.com/health](https://aegissoc-ai.onrender.com/health)
 
 [![CI Status](https://github.com/rahulst2000/AegisSOC-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/rahulst2000/AegisSOC-AI/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -10,14 +16,22 @@
 
 ---
 
-## 1. Project Purpose
-**AegisSOC AI** is a legitimate defensive cybersecurity operations platform engineered for modern enterprise defense. It bridges the gap between raw telemetry ingestion, automated adversary detection, forensic evidence validation, and continuous security posture improvement. 
+## 1. Executive Summary & Philosophy
 
-### Core Defensive Mission:
-- Enforce strong tenant isolation.
-- Decouple AI recommendations from actual security interventions to guarantee safety.
-- Provide forensic non-repudiation with SHA-256 evidence integrity hashing and append-only audit logging.
-- Prohibit any destructive action or uncontrolled autonomous offensive activity.
+**AegisSOC AI** is an enterprise-grade cybersecurity operations platform engineered for modern defense-in-depth architectures. It seamlessly bridges raw sensor telemetry, automated behavioral detection, forensic evidence validation, adversarial simulation, and continuous security posture improvement.
+
+### Core Operating Loop
+```text
+Detect → Understand → Predict → Decide → Respond → Verify → Escalate → Improve → Govern
+```
+
+### Trust & Safety Model
+> **AI recommends. Evidence proves. Policy authorizes. Humans control critical actions. Verification confirms the result.**
+
+- **Evidence-Grounded**: Every alert, investigation, and conclusion is linked to cryptographic SHA-256 evidence records.
+- **Strict Tenant Isolation**: Cryptographically verified server-side JWT session derivation ensures absolute partition boundaries.
+- **Controlled Automation**: AI never silently executes high-impact remediations; high-risk actions require dual-key human authorization.
+- **Continuous Adversary Validation**: Active verification of detection coverage using scoped, non-destructive simulation scenarios.
 
 ---
 
@@ -27,14 +41,14 @@ AegisSOC AI is built as a cloud-native, containerized multi-tier system:
 - **Frontend**: Single-page application built in **React 18 + TypeScript + Vite**, with dark-mode glassmorphic SOC command center aesthetics, live telemetry indicators, and interactive incident triage.
 - **Backend**: Asynchronous high-performance REST API built with **FastAPI / Python 3.12+**, structured JSON logging, correlation IDs (`X-Request-ID`), defense-in-depth security headers, and Pydantic v2 data validation.
 - **Data Persistence**: **PostgreSQL 16** with SQLAlchemy 2.0 ORM and Alembic migrations, utilizing composite indices optimized for tenant queries, timestamps, severity, and hostnames.
-- **Cache & Jobs**: **Redis 7** for rate limiting, cache storage, and background task queues.
+- **Cache & Message Broker**: **Redis 7** (with resilient in-memory fallback queues for zero-loss operation in decoupled serverless deployments).
 
 ```
 AegisSOC AI Platform
- ├── Frontend (Port 3000)      --> Vite / React / TypeScript SOC Dashboard
- ├── Backend (Port 8000)       --> FastAPI, Pydantic, SQLAlchemy 2.0
- ├── Database (Port 5432)      --> PostgreSQL 16 (Tenant-Isolated Schemas)
- └── Cache (Port 6379)         --> Redis 7 (Rate Limiting & Sessions)
+ ├── Frontend (Port 3000 / Render)  --> Vite / React / TypeScript SOC Dashboard
+ ├── Backend (Port 8000 / Render)   --> FastAPI, Pydantic, SQLAlchemy 2.0
+ ├── Database (Port 5432 / Neon)    --> PostgreSQL 16 (Tenant-Isolated Schemas)
+ └── Cache / Queue                  --> Redis 7 & Resilient In-Memory Fallback Queue
 ```
 
 For detailed architecture diagrams and design rationale, see [`docs/ARCHITECTURE.md`](file:///c:/Users/Rahul/OneDrive/Desktop/AegisSOC/docs/ARCHITECTURE.md).
@@ -139,7 +153,7 @@ npm run test
 | **Phase 5B** | Advanced Security Intelligence | **VERIFIED** | SecurityState(t), Attack Graph, Trajectory, GRC |
 
 ### Test & Security Assurance Summary
-- **Backend Tests**: **132 passed** (0 failures, 100% passing across functional, isolation, and benchmark suites).
+- **Backend Tests**: **137 passed** (0 failures, 100% passing across functional, isolation, detection normalization, and benchmark suites).
 - **Frontend Tests**: **3 passed** (`vitest run`).
 - **Live Verification**: **35/35 stages verified** (34 passed, 1 restricted by safety policy).
 - **Production Smoke Tests**: **100% passed** (`scripts/production_smoke_test.py`).
