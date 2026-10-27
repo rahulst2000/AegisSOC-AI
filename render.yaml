@@ -6,6 +6,7 @@ services:
   - type: web
     name: aegissoc-backend
     runtime: docker
+    rootDir: .
     dockerfilePath: backend/Dockerfile
     dockerContext: .
     plan: free

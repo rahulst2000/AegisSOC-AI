@@ -1,5 +1,5 @@
-# ==============================================================================
 # AegisSOC AI Backend - Multi-Stage Hardened Containerfile
+# Build context: repository root (.)
 # ==============================================================================
 
 # Stage 1: Builder stage with compilation dependencies & isolated virtualenv
