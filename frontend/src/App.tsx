@@ -113,7 +113,12 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <Navbar user={user} tenantName={tenantName} onLogout={handleLogout} />
+      <Navbar
+        user={user}
+        tenantName={tenantName}
+        onLogout={handleLogout}
+        onNavigateTab={(tab) => setActiveTab(tab as NavTab)}
+      />
 
       <div style={{ display: "flex", flex: 1 }}>
         <Sidebar

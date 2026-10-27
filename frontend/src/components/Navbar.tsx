@@ -2,14 +2,16 @@ import React from "react";
 import { Shield, LogOut } from "lucide-react";
 import { User } from "../types";
 import { StatusBadge } from "./StatusBadge";
+import { GlobalThreatSearch } from "./GlobalThreatSearch";
 
 interface NavbarProps {
   user: User | null;
   tenantName: string;
   onLogout: () => void;
+  onNavigateTab?: (tab: string, context?: any) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, tenantName, onLogout }) => {
+export const Navbar: React.FC<NavbarProps> = ({ user, tenantName, onLogout, onNavigateTab }) => {
   return (
     <header
       style={{
@@ -59,6 +61,12 @@ export const Navbar: React.FC<NavbarProps> = ({ user, tenantName, onLogout }) =>
           <span>ACTIVE MONITORING</span>
         </div>
       </div>
+
+      {user && (
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <GlobalThreatSearch onNavigateTab={onNavigateTab || (() => {})} />
+        </div>
+      )}
 
       {user && (
         <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>

@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert
@@ -98,16 +98,56 @@ async def get_security_events(
     tenant_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
+    severity: str | None = None,
+    event_type: str | None = None,
+    source: str | None = None,
+    source_ip: str | None = None,
+    username: str | None = None,
+    search: str | None = None,
 ) -> list[SecurityEvent]:
     """
-    Fetches events with strict tenant boundary filtering.
+    Fetches events with strict tenant boundary filtering and optional attribute filters.
     """
-    stmt = (
-        select(SecurityEvent)
-        .where(SecurityEvent.tenant_id == tenant_id)
-        .order_by(SecurityEvent.timestamp.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    stmt = select(SecurityEvent).where(SecurityEvent.tenant_id == tenant_id)
+
+    if severity:
+        stmt = stmt.where(SecurityEvent.severity == severity.upper())
+    if event_type:
+        stmt = stmt.where(SecurityEvent.event_type.ilike(f"%{event_type}%"))
+    if source:
+        stmt = stmt.where(SecurityEvent.source.ilike(f"%{source}%"))
+    if source_ip:
+        stmt = stmt.where(SecurityEvent.source_ip == source_ip)
+    if username:
+        stmt = stmt.where(SecurityEvent.username.ilike(f"%{username}%"))
+    if search:
+        search_term = f"%{search}%"
+        stmt = stmt.where(
+            or_(
+                SecurityEvent.event_type.ilike(search_term),
+                SecurityEvent.source.ilike(search_term),
+                SecurityEvent.source_ip.ilike(search_term),
+                SecurityEvent.hostname.ilike(search_term),
+                SecurityEvent.username.ilike(search_term),
+            )
+        )
+
+    stmt = stmt.order_by(SecurityEvent.timestamp.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+async def get_security_event_by_id(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    event_id: uuid.UUID,
+) -> SecurityEvent | None:
+    """
+    Fetches a single event by ID with strict tenant boundary enforcement.
+    """
+    stmt = select(SecurityEvent).where(
+        SecurityEvent.tenant_id == tenant_id,
+        SecurityEvent.id == event_id,
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()

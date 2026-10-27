@@ -119,9 +119,51 @@ class ApiService {
     });
   }
 
+  // Global Threat Search
+  async search(query: string): Promise<{
+    query: string;
+    total_matches: number;
+    categories: {
+      incidents: any[];
+      events: any[];
+      alerts: any[];
+      assets: any[];
+      detections: any[];
+      threat_intelligence: any[];
+    };
+  }> {
+    return this.request(`/search?q=${encodeURIComponent(query)}`);
+  }
+
   // Events
-  async getEvents(): Promise<SecurityEvent[]> {
-    return this.request<SecurityEvent[]>("/events");
+  async getEvents(params?: {
+    skip?: number;
+    limit?: number;
+    severity?: string;
+    event_type?: string;
+    source?: string;
+    source_ip?: string;
+    username?: string;
+    search?: string;
+  }): Promise<SecurityEvent[]> {
+    if (!params) {
+      return this.request<SecurityEvent[]>("/events");
+    }
+    const query = new URLSearchParams();
+    if (params.skip !== undefined) query.set("skip", String(params.skip));
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    if (params.severity) query.set("severity", params.severity);
+    if (params.event_type) query.set("event_type", params.event_type);
+    if (params.source) query.set("source", params.source);
+    if (params.source_ip) query.set("source_ip", params.source_ip);
+    if (params.username) query.set("username", params.username);
+    if (params.search) query.set("search", params.search);
+    const qs = query.toString();
+    return this.request<SecurityEvent[]>(`/events${qs ? `?${qs}` : ""}`);
+  }
+
+  async getEventById(id: string): Promise<SecurityEvent> {
+    return this.request<SecurityEvent>(`/events/${id}`);
   }
 
   async ingestEvent(event: {
