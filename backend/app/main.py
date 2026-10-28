@@ -28,28 +28,18 @@ async def lifespan(app: FastAPI):
         extra={"environment": settings.ENVIRONMENT},
     )
 
-    # Schema initialization and self-healing column migration
-    try:
-        async with asyncio.timeout(15.0):
+    # Database schema management:
+    # In SQLite environments (e.g. ad-hoc local testing), ensure Base models are initialized.
+    # In PostgreSQL (production/staging), schema is managed authoritatively via Alembic migrations.
+    if engine.dialect.name == "sqlite":
+        try:
             async with engine.begin() as conn:
-                if conn.dialect.name == "postgresql":
-                    await conn.execute(
-                        text(
-                            """
-                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS mitre_techniques JSON DEFAULT '[]';
-                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS detection_ids JSON DEFAULT '[]';
-                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS affected_assets JSON DEFAULT '[]';
-                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS affected_users JSON DEFAULT '[]';
-                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS source_ips JSON DEFAULT '[]';
-                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS first_seen TIMESTAMP WITH TIME ZONE;
-                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP WITH TIME ZONE;
-                            """
-                        )
-                    )
                 await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database schemas and incident attributes verified.")
-    except Exception as exc:
-        logger.warning("Database schema auto-creation deferred or non-blocking: %s", exc)
+            logger.info("Local SQLite database schemas initialized.")
+        except Exception as exc:
+            logger.warning("Local SQLite schema initialization: %s", exc)
+    else:
+        logger.info("Database schemas managed authoritatively via Alembic migrations.")
 
     # 1. Synchronize baseline detection rules into database
     try:
