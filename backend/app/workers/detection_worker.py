@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.detection.engine import DetectionEngine
 from app.detection.models import DetectionResult
 from app.models.event import SecurityEvent
+from app.models.evidence import Evidence
 from app.workers.queue import dequeue_event, enqueue_detection_for_correlation
 
 logger = logging.getLogger(__name__)
@@ -22,33 +23,62 @@ class DetectionWorker:
 
     def __init__(self, engine: DetectionEngine | None = None) -> None:
         self.engine = engine or DetectionEngine()
+        self._evaluated_event_ids: set[uuid.UUID] = set()
 
-    async def process_next_event(self, db: AsyncSession) -> list[DetectionResult]:
-        """Pulls and processes a single event task from the queue."""
+    async def process_next_event(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID | None = None,
+    ) -> list[DetectionResult]:
+        """Pulls and processes a single event task from the queue or DB fallback."""
         item = await dequeue_event()
-        if not item:
-            return []
+        event: SecurityEvent | None = None
+        target_tenant_id: uuid.UUID | None = tenant_id
 
-        try:
-            event_id = uuid.UUID(item["event_id"])
-            tenant_id = uuid.UUID(item["tenant_id"])
-        except (KeyError, ValueError) as exc:
-            logger.error(f"Malformed queue payload {item}: {exc}")
-            return []
+        if item:
+            try:
+                event_id = uuid.UUID(item["event_id"])
+                item_tenant_id = uuid.UUID(item["tenant_id"])
+            except (KeyError, ValueError) as exc:
+                logger.error(f"Malformed queue payload {item}: {exc}")
+                return []
 
-        # Fetch SecurityEvent bounded strictly to tenant_id
-        stmt = select(SecurityEvent).where(
-            SecurityEvent.id == event_id,
-            SecurityEvent.tenant_id == tenant_id,
-        )
-        res = await db.execute(stmt)
-        event = res.scalars().first()
+            if target_tenant_id and item_tenant_id != target_tenant_id:
+                from app.workers.queue import enqueue_event_for_detection
+
+                await enqueue_event_for_detection(str(event_id), str(item_tenant_id))
+            else:
+                target_tenant_id = item_tenant_id
+                # Fetch SecurityEvent bounded strictly to tenant_id
+                stmt = select(SecurityEvent).where(
+                    SecurityEvent.id == event_id,
+                    SecurityEvent.tenant_id == target_tenant_id,
+                )
+                res = await db.execute(stmt)
+                event = res.scalars().first()
+                if not event:
+                    logger.warning(f"Event {event_id} not found for tenant {target_tenant_id}")
+
         if not event:
-            logger.warning(f"Event {event_id} not found for tenant {tenant_id}")
-            return []
+            # Resilient self-healing fallback when Redis is absent or on container restart:
+            # Scan for SecurityEvents not yet resolved into an incident
+            resolved_event_ids_stmt = select(Evidence.event_id).where(Evidence.incident_id.is_not(None))
+            query = select(SecurityEvent).where(SecurityEvent.id.not_in(resolved_event_ids_stmt))
+            if target_tenant_id:
+                query = query.where(SecurityEvent.tenant_id == target_tenant_id)
+            stmt = query.order_by(SecurityEvent.timestamp.asc()).limit(50)
+            res = await db.execute(stmt)
+            all_events = list(res.scalars().all())
+            unprocessed = [e for e in all_events if e.id not in self._evaluated_event_ids]
+            if not unprocessed:
+                return []
+            event = unprocessed[0]
+            target_tenant_id = event.tenant_id
+
+        self._evaluated_event_ids.add(event.id)
 
         # Run detection engine
-        detections = await self.engine.evaluate_events(db=db, tenant_id=tenant_id, events=[event])
+        detections = await self.engine.evaluate_events(db=db, tenant_id=target_tenant_id, events=[event])
 
         # Enqueue generated detections for correlation
         for det in detections:

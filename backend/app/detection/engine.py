@@ -12,6 +12,7 @@ from app.detection.models import DetectionResult, DetectionRule
 from app.detection.registry import global_rule_registry
 from app.models.alert import Alert
 from app.models.event import SecurityEvent
+from app.models.incident import Incident
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,13 @@ class DetectionEngine:
                 logger.info(
                     f"Deduplicated detection for rule {rule.rule_id} (count={existing_detection.detection_count})"
                 )
+                # Ensure detection is not stranded if never correlated (e.g. worker reboot or schema recovery)
+                inc_stmt = select(Incident).where(Incident.tenant_id == tenant_id)
+                inc_res = await db.execute(inc_stmt)
+                tenant_incs = list(inc_res.scalars().all())
+                is_correlated = any(str(existing_detection.id) in (inc.detection_ids or []) for inc in tenant_incs)
+                if not is_correlated:
+                    detection_results.append(existing_detection)
                 continue
 
             # Count previous occurrences of this rule for this tenant

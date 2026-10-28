@@ -12,8 +12,14 @@ from app.detection.rule_loader import sync_rules_to_db
 from app.models.event import SecurityEvent
 from app.models.incident import Incident
 from app.models.tenant import Tenant
+from app.schemas.event import SecurityEventCreate
 from app.schemas.incident import IncidentRead
+from app.services.event_service import create_security_event
+from app.workers.correlation_worker import CorrelationWorker
+from app.workers.detection_worker import DetectionWorker
 from app.workers.queue import (
+    _in_memory_detection_queue,
+    _in_memory_event_queue,
     dequeue_detection,
     dequeue_event,
     enqueue_detection_for_correlation,
@@ -156,3 +162,112 @@ async def test_end_to_end_telemetry_pipeline_to_incident(db_session: AsyncSessio
     assert inc.status == "OPEN"
     assert attacker_ip in (inc.source_ips or [])
     assert inc.risk_score >= 70.0
+
+
+@pytest.mark.asyncio
+async def test_worker_zero_loss_reconciliation_after_restart(db_session: AsyncSession):
+    """
+    Regression test for production container restart / queue fallback gap:
+    Proves that when events are ingested and in-memory queue is wiped (simulating
+    container reboot in non-Redis environment), DetectionWorker and CorrelationWorker
+    reconcile existing database telemetry and produce the Incident without data loss.
+    """
+    tenant = Tenant(name=f"Reconciliation Org {uuid.uuid4().hex[:6]}")
+    db_session.add(tenant)
+    await db_session.commit()
+    await db_session.refresh(tenant)
+
+    await sync_rules_to_db(db_session)
+
+    # 1. Ingest LSASS critical threat event via event_service
+    event_in = SecurityEventCreate(
+        source="CrowdStrike-EDR",
+        event_type="LSASS_MEMORY_ACCESS_ATTEMPT",
+        severity="CRITICAL",
+        source_ip="10.0.4.18",
+        username="svc_backup",
+        hostname="dc-primary.corp",
+        raw_event={
+            "ProcessName": "mimikatz.exe",
+            "TargetProcess": "lsass.exe",
+            "GrantedAccess": "0x1010",
+        },
+    )
+    evt = await create_security_event(db=db_session, tenant_id=tenant.id, event_in=event_in)
+    assert evt.id is not None
+
+    # 2. Simulate container restart: wipe in-memory queues completely
+    _in_memory_event_queue.clear()
+    _in_memory_detection_queue.clear()
+
+    # 3. DetectionWorker runs against DB fallback
+    dw = DetectionWorker()
+    detections = await dw.process_next_event(db_session, tenant_id=tenant.id)
+    assert len(detections) >= 1, "DetectionWorker must reconcile un-evaluated event from DB"
+    matched_det = detections[0]
+    assert matched_det.rule_id == "AEGIS-SIG-CRITICAL-THREAT"
+
+    # 4. CorrelationWorker runs against queue or DB fallback
+    cw = CorrelationWorker()
+    incidents = await cw.process_next_detection(db_session, tenant_id=tenant.id)
+    assert len(incidents) >= 1, "CorrelationWorker must correlate reconciled detection into Incident"
+
+    # 5. Verify database persistence and schema
+    stmt = select(Incident).where(Incident.tenant_id == tenant.id)
+    res = await db_session.execute(stmt)
+    all_incs = list(res.scalars().all())
+    assert len(all_incs) == 1
+    inc = all_incs[0]
+    assert inc.severity == "CRITICAL"
+    assert inc.status == "OPEN"
+    assert "10.0.4.18" in (inc.source_ips or [])
+    assert "svc_backup" in (inc.affected_users or [])
+    assert "dc-primary.corp" in (inc.affected_assets or [])
+    assert any("T1003" in t for t in (inc.mitre_techniques or []))
+
+
+@pytest.mark.asyncio
+async def test_un_correlated_detection_dedup_trap_recovery(db_session: AsyncSession):
+    """
+    Regression test for deduplication trap:
+    Proves that if DetectionResult was persisted but never correlated into an Incident,
+    DetectionEngine does not drop it, and CorrelationWorker successfully correlates it.
+    """
+    tenant = Tenant(name=f"Dedup Trap Org {uuid.uuid4().hex[:6]}")
+    db_session.add(tenant)
+    await db_session.commit()
+    await db_session.refresh(tenant)
+
+    await sync_rules_to_db(db_session)
+
+    # 1. Ingest event
+    event_in = SecurityEventCreate(
+        source="CrowdStrike-EDR",
+        event_type="LSASS_MEMORY_ACCESS_ATTEMPT",
+        severity="CRITICAL",
+        source_ip="10.0.4.18",
+        username="svc_backup",
+        hostname="dc-primary.corp",
+        raw_event={"ProcessName": "mimikatz.exe", "TargetProcess": "lsass.exe"},
+    )
+    evt = await create_security_event(db=db_session, tenant_id=tenant.id, event_in=event_in)
+
+    # 2. Process event with DetectionWorker -> creates DetectionResult in DB
+    dw = DetectionWorker()
+    dets = await dw.process_next_event(db_session, tenant_id=tenant.id)
+    assert len(dets) >= 1
+
+    # 3. Simulate failure before correlation: clear detection queue
+    _in_memory_detection_queue.clear()
+
+    # 4. CorrelationWorker detects un-correlated DetectionResult in DB and correlates it
+    cw = CorrelationWorker()
+    incs = await cw.process_next_detection(db_session, tenant_id=tenant.id)
+    assert len(incs) >= 1, "CorrelationWorker must recover un-correlated detection from DB"
+
+    stmt = select(Incident).where(Incident.tenant_id == tenant.id)
+    res = await db_session.execute(stmt)
+    all_incs = list(res.scalars().all())
+    assert len(all_incs) == 1
+    assert all_incs[0].severity == "CRITICAL"
+

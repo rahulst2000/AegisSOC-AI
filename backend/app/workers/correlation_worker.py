@@ -23,32 +23,67 @@ class CorrelationWorker:
     def __init__(self, correlator: Correlator | None = None) -> None:
         self.correlator = correlator or Correlator()
 
-    async def process_next_detection(self, db: AsyncSession) -> list[Incident]:
-        """Pulls and correlates a single detection task from the queue."""
+    async def process_next_detection(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID | None = None,
+    ) -> list[Incident]:
+        """Pulls and correlates a single detection task from the queue or DB fallback."""
         item = await dequeue_detection()
-        if not item:
-            return []
+        detection: DetectionResult | None = None
+        target_tenant_id: uuid.UUID | None = tenant_id
 
-        try:
-            detection_id = uuid.UUID(item["detection_id"])
-            tenant_id = uuid.UUID(item["tenant_id"])
-        except (KeyError, ValueError) as exc:
-            logger.error(f"Malformed detection queue payload {item}: {exc}")
-            return []
+        if item:
+            try:
+                detection_id = uuid.UUID(item["detection_id"])
+                item_tenant_id = uuid.UUID(item["tenant_id"])
+            except (KeyError, ValueError) as exc:
+                logger.error(f"Malformed detection queue payload {item}: {exc}")
+                return []
 
-        stmt = select(DetectionResult).where(
-            DetectionResult.id == detection_id,
-            DetectionResult.tenant_id == tenant_id,
-        )
-        res = await db.execute(stmt)
-        detection = res.scalars().first()
+            if target_tenant_id and item_tenant_id != target_tenant_id:
+                from app.workers.queue import enqueue_detection_for_correlation
+
+                await enqueue_detection_for_correlation(str(detection_id), str(item_tenant_id))
+            else:
+                target_tenant_id = item_tenant_id
+                stmt = select(DetectionResult).where(
+                    DetectionResult.id == detection_id,
+                    DetectionResult.tenant_id == target_tenant_id,
+                )
+                res = await db.execute(stmt)
+                detection = res.scalars().first()
+                if not detection:
+                    logger.warning(f"Detection {detection_id} not found for tenant {target_tenant_id}")
+
         if not detection:
-            logger.warning(f"Detection {detection_id} not found for tenant {tenant_id}")
-            return []
+            # Resilient self-healing fallback when Redis is absent or on container restart:
+            # Scan for any un-correlated DetectionResult in the database
+            query = select(DetectionResult)
+            if target_tenant_id:
+                query = query.where(DetectionResult.tenant_id == target_tenant_id)
+            stmt = query.order_by(DetectionResult.timestamp.asc()).limit(50)
+            res = await db.execute(stmt)
+            all_dets = list(res.scalars().all())
+            if not all_dets:
+                return []
+
+            for candidate in all_dets:
+                inc_stmt = select(Incident).where(Incident.tenant_id == candidate.tenant_id)
+                inc_res = await db.execute(inc_stmt)
+                tenant_incs = list(inc_res.scalars().all())
+                is_linked = any(str(candidate.id) in (inc.detection_ids or []) for inc in tenant_incs)
+                if not is_linked:
+                    detection = candidate
+                    target_tenant_id = candidate.tenant_id
+                    break
+
+            if not detection or not target_tenant_id:
+                return []
 
         incidents = await self.correlator.correlate_detections(
             db=db,
-            tenant_id=tenant_id,
+            tenant_id=target_tenant_id,
             detections=[detection],
         )
         return incidents
