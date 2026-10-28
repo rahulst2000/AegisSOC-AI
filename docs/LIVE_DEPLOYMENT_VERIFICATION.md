@@ -80,6 +80,44 @@ During initial cloud/container startup, the backend container took too long to r
 
 ---
 
+## 3.1. Database Schema Synchronization & Incident Model Realignment
+
+### Identified Production Gap
+When running live against cloud PostgreSQL (Neon / Render), the `/api/v1/incidents` endpoint and correlation workers raised `UndefinedColumn: column incidents.mitre_techniques does not exist` (HTTP 500).
+
+### Root Cause
+1. `database/migrations/versions/001_initial_schema.py` generated the initial 8 tables but omitted 7 extended Phase 2-5 columns on the `incidents` table:
+   - `mitre_techniques` (JSONB / ARRAY)
+   - `detection_ids` (JSONB / ARRAY)
+   - `affected_assets` (JSONB / ARRAY)
+   - `affected_users` (JSONB / ARRAY)
+   - `source_ips` (JSONB / ARRAY)
+   - `first_seen` (TIMESTAMP WITH TIME ZONE)
+   - `last_seen` (TIMESTAMP WITH TIME ZONE)
+2. No subsequent Alembic migration existed in `database/migrations/versions/` to apply these schema additions. While local tests utilizing ephemeral SQLite `create_all` masked this deficiency, remote cloud PostgreSQL instances were missing these columns.
+
+### Resolution
+1. **Alembic Migration `002_complete_schema.py`**:
+   - Added `ALTER TABLE incidents ADD COLUMN ...` for all 7 missing columns.
+   - Declared and applied table creation DDL for all remaining Phase 2 through Phase 5 models (`detection_rules`, `detection_results`, `investigations`, `investigation_hypotheses`, `investigation_findings`, `l2_escalations`, `playbook_definitions`, `action_requests`, `security_policies`, `security_findings`, `remediation_actions`, `adversary_assessments`, `adversary_assessment_results`, `security_state_snapshots`, `security_state_transitions`, `attack_trajectories`, `attack_graph_snapshots`, `organizational_security_memory`, `threat_intel_indicators`, `continuous_adversary_schedules`, `grc_control_mappings`, `detection_improvement_candidates`).
+2. **Self-Healing Lifespan DDL**:
+   - In `backend/app/main.py`, added a non-blocking `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS ...` execution block during FastAPI container startup to guarantee that production databases auto-heal and synchronize immediately without manual database intervention.
+
+---
+
+## 3.2. Verification Architecture: Smoke vs. Local E2E vs. Synthetic
+
+`scripts/live_verification.py` was redesigned with strict operational safety classifications:
+- **`--mode smoke` (Default for Production / Remote Deployments)**:
+  - Executes exclusively non-destructive, read-only verifications (`Frontend Bundle`, `/healthz`, `/health`, `AI Status Probe`, `HTTPS Enforce`, `Security Headers`, `Adversary Simulation Scope Enforcement`, `No Frontend Secrets`).
+  - Zero state mutations: never registers temporary test tenants, users, synthetic events, or mock response executions in production.
+- **`--mode e2e` (For Ephemeral / Local Staging Environments)**:
+  - Executes the full 35-stage lifecycle suite (Registration -> Ingestion -> AST Detection -> Correlation -> Incident Generation -> Investigation -> Containment Action -> Adversary Guardrail Check).
+- **`--mode synthetic`**:
+  - Ingests pre-tagged synthetic telemetry with cryptographic trace IDs to test the end-to-end detection pipeline under controlled isolation.
+
+---
+
 ## 4. End-to-End Verification Results
 
 The automated live verification suite (`scripts/live_verification.py`) executed all 35 tests in the exact required sequence against the running stack.
@@ -155,7 +193,7 @@ The automated live verification suite (`scripts/live_verification.py`) executed 
 
 ## 7. Release Certification & Live Status
 
-All 35 live feature acceptance tests, the complete 132-test unit/integration test suite, code formatting checks, and security guardrail checks have been independently executed and verified against the running stack.
+All 35 live feature acceptance tests, the complete 148-test unit/integration test suite, code formatting checks, and security guardrail checks have been independently executed and verified.
 
 ```
 ================================================================================
@@ -167,7 +205,7 @@ Restricted (By Policy):   1
 Failed:                   0
 Not Verified:             0
 
-Backend Pytest Suite:     132 passed / 132 total (100%)
+Backend Pytest Suite:     148 passed / 148 total (100%)
 Ruff Code Quality:        All checks passed (179 files formatted)
 Frontend Build:           Production bundle verified (0 secrets exposed)
 Container Stack:          4/4 healthy (frontend, backend, postgres, redis)

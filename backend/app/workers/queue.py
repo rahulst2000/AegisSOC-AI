@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from collections import deque
 from typing import Any
 
@@ -17,11 +18,18 @@ _in_memory_event_queue: deque[dict[str, Any]] = deque()
 _in_memory_detection_queue: deque[dict[str, Any]] = deque()
 _last_redis_error: str | None = None
 _fallback_mode_active: bool = False
+_last_redis_check_time: float = 0.0
+_REDIS_RETRY_INTERVAL: float = 30.0
 
 
 async def get_redis_client() -> aioredis.Redis | None:
     """Returns an async Redis client, or None if connection fails."""
-    global _last_redis_error, _fallback_mode_active
+    global _last_redis_error, _fallback_mode_active, _last_redis_check_time
+    now = time.monotonic()
+    if _fallback_mode_active and (now - _last_redis_check_time < _REDIS_RETRY_INTERVAL):
+        return None
+
+    _last_redis_check_time = now
     try:
         client = aioredis.from_url(
             settings.get_redis_url(),

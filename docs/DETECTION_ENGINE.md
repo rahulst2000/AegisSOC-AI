@@ -60,6 +60,17 @@ AegisSOC enforces strict defensive guidelines: **detection rules are data, not c
 
 ---
 
+## 3.1. Canonical Event Type Normalization
+
+To ensure resilient detection across heterogeneous telemetry ingestion pipelines, the `RuleEvaluator` transparently normalizes telemetry event types against canonical security rule expectations:
+
+- **Authentication Failures (`AUTH_FAILURE`)**: Matches `AUTH_FAILURE`, `AUTHENTICATION_FAILURE`, `AUTH_FAILED`, `FAILED_LOGIN`, `LOGIN_FAILURE`, `SSH_LOGIN_FAILURE`, and `SSH_LOGIN_FAILED`.
+- **Authentication Successes (`AUTH_SUCCESS`)**: Matches `AUTH_SUCCESS`, `AUTHENTICATION_SUCCESS`, `SUCCESSFUL_LOGIN`, and `LOGIN_SUCCESS`.
+
+When a Sigma rule specifies `event_types: ["auth_failure"]` or conditions matching `event_type: auth_failure`, incoming telemetry labeled as `ssh_login_failure` automatically satisfies canonical normalization without requiring ad-hoc rule duplication.
+
+---
+
 ## 4. Multi-Tenant Isolation
 
 - Global system baseline rules are visible and evaluated for all tenants.

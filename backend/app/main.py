@@ -28,17 +28,28 @@ async def lifespan(app: FastAPI):
         extra={"environment": settings.ENVIRONMENT},
     )
 
-    # In development/test, initialize tables safely with a timeout; in production Alembic manages schema
-    if settings.ENVIRONMENT.lower() != "production":
-        try:
-            async with asyncio.timeout(5.0):
-                async with engine.begin() as conn:
-                    await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database schemas verified.")
-        except Exception as exc:
-            logger.warning("Database schema auto-creation deferred or non-blocking: %s", exc)
-    else:
-        logger.info("Production mode active: schema migrations managed via Alembic.")
+    # Schema initialization and self-healing column migration
+    try:
+        async with asyncio.timeout(15.0):
+            async with engine.begin() as conn:
+                if conn.dialect.name == "postgresql":
+                    await conn.execute(
+                        text(
+                            """
+                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS mitre_techniques JSON DEFAULT '[]';
+                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS detection_ids JSON DEFAULT '[]';
+                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS affected_assets JSON DEFAULT '[]';
+                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS affected_users JSON DEFAULT '[]';
+                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS source_ips JSON DEFAULT '[]';
+                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS first_seen TIMESTAMP WITH TIME ZONE;
+                            ALTER TABLE incidents ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP WITH TIME ZONE;
+                            """
+                        )
+                    )
+                await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database schemas and incident attributes verified.")
+    except Exception as exc:
+        logger.warning("Database schema auto-creation deferred or non-blocking: %s", exc)
 
     # 1. Synchronize baseline detection rules into database
     try:
