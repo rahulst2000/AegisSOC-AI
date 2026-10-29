@@ -25,6 +25,20 @@ class Token(BaseModel):
     user: UserRead
 
 
+class TokenRefreshRequest(BaseModel):
+    refresh_token: str = Field(..., min_length=10, description="Valid signed refresh token")
+
+
+class TokenRefreshResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class LogoutResponse(BaseModel):
+    message: str = "Successfully logged out."
+
+
 class TokenPayload(BaseModel):
     sub: uuid.UUID
     tenant_id: uuid.UUID

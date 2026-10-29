@@ -48,6 +48,45 @@ async def escalate_incident(
         urgency=urgency,
     )
 
+    # Check for existing open escalation to guarantee idempotent behavior
+    existing_stmt = (
+        select(L2Escalation)
+        .where(
+            L2Escalation.incident_id == incident_id,
+            L2Escalation.tenant_id == tenant_id,
+            L2Escalation.status == "OPEN",
+        )
+        .order_by(L2Escalation.escalated_at.desc())
+    )
+    existing_res = await db.execute(existing_stmt)
+    existing_esc = existing_res.scalars().first()
+    if existing_esc:
+        existing_esc.reason = reason
+        existing_esc.urgency = urgency
+        existing_esc.l2_package = package
+        existing_esc.escalated_at = datetime.now(UTC)
+        if user_id:
+            existing_esc.escalated_by = user_id
+        incident.status = "ESCALATED"
+        await log_audit_event(
+            db=db,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            action="L2_ESCALATION_UPDATED",
+            resource_type="l2_escalation",
+            resource_id=str(existing_esc.id),
+            result="SUCCESS",
+            metadata={
+                "incident_id": str(incident_id),
+                "urgency": urgency,
+                "reason": reason,
+                "idempotent": True,
+            },
+        )
+        await db.commit()
+        await db.refresh(existing_esc)
+        return existing_esc
+
     escalation = L2Escalation(
         incident_id=incident_id,
         investigation_id=investigation_id,
@@ -79,6 +118,8 @@ async def escalate_incident(
             "reason": reason,
         },
     )
+    await db.commit()
+    await db.refresh(escalation)
     return escalation
 
 

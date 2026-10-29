@@ -15,6 +15,10 @@ backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "bac
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
+os.environ.setdefault("ENVIRONMENT", "testing")
+os.environ.setdefault("SECRET_KEY", "smoke-test-secret-key-32-characters-minimum")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool

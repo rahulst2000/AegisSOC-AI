@@ -169,9 +169,10 @@ async def readiness_probe():
                 await conn.execute(text("SELECT 1"))
         return {"status": "ready", "database": "connected"}
     except Exception as exc:
+        logger.warning("Readiness probe database connection failure: %s", type(exc).__name__)
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"status": "degraded", "database": f"unavailable: {exc}"},
+            content={"status": "degraded", "database": "unavailable"},
         )
 
 

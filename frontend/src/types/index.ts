@@ -1,11 +1,17 @@
 export type Role =
   | "TENANT_ADMIN"
   | "SOC_L1"
+  | "SOC_L1_ANALYST"
   | "SOC_L2"
+  | "SOC_L2_ANALYST"
   | "SECURITY_ENGINEER"
+  | "THREAT_HUNTER"
+  | "AUDITOR"
+  | "VIEWER"
   | "GRC_ANALYST"
   | "SECURITY_MANAGER"
   | "CISO";
+
 
 export interface Tenant {
   id: string;

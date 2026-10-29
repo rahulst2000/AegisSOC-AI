@@ -270,4 +270,3 @@ async def test_un_correlated_detection_dedup_trap_recovery(db_session: AsyncSess
     all_incs = list(res.scalars().all())
     assert len(all_incs) == 1
     assert all_incs[0].severity == "CRITICAL"
-

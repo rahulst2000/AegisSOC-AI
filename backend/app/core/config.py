@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # General
     PROJECT_NAME: str = "AegisSOC AI"
     VERSION: str = "1.0.0"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "production"
     DEBUG: bool = False
 
     # Server

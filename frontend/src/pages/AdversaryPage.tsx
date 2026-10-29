@@ -10,6 +10,7 @@ export const AdversaryPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [statusCategory, setStatusCategory] = useState<"ALL" | "ACTIVE" | "COMPLETED" | "FAILED" | "ARCHIVED">("ALL");
 
   // Modal State
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
@@ -21,6 +22,7 @@ export const AdversaryPage: React.FC = () => {
   const loadAssessments = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await api.getAssessments();
       setAssessments(data);
       if (data.length > 0 && !selectedAssessment) {
@@ -28,11 +30,18 @@ export const AdversaryPage: React.FC = () => {
         loadResults(data[0].id);
       }
     } catch (err: any) {
-      setError(err.message || "Failed to load assessments");
+      if (err?.isAuthError || err?.status === 401) {
+        setError("Authentication expired — sign in again.");
+      } else if (err?.isForbidden || err?.status === 403) {
+        setError("Access denied — your role does not have permission for adversary validation.");
+      } else {
+        setError(err.message || "Unable to load adversary assessments — server unavailable.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   const loadResults = async (assessmentId: string) => {
     try {
@@ -202,12 +211,42 @@ export const AdversaryPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Assessments List */}
         <div className="lg:col-span-5 space-y-3">
-          <div className="text-sm font-semibold uppercase tracking-wider text-slate-400 px-1">
-            Assessments ({assessments.length})
+          <div className="flex justify-between items-center px-1">
+            <div className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+              Assessments ({assessments.length})
+            </div>
           </div>
+
+          {/* Status Category Tabs */}
+          <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px]">
+            {(["ALL", "ACTIVE", "COMPLETED", "FAILED", "ARCHIVED"] as const).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setStatusCategory(cat)}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  statusCategory === cat
+                    ? "bg-slate-800 text-white shadow"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
           {loading ? (
             <div className="p-8 text-center text-slate-500 bg-slate-900/40 rounded-xl border border-slate-800">
               Loading assessments...
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center bg-rose-950/20 rounded-xl border border-rose-900/40 space-y-2">
+              <span className="text-rose-400 text-sm font-medium block">⚠️ {error}</span>
+              <button
+                onClick={loadAssessments}
+                className="px-3 py-1 bg-rose-900/40 hover:bg-rose-900/60 text-white rounded-lg text-xs"
+              >
+                Retry
+              </button>
             </div>
           ) : assessments.length === 0 ? (
             <div className="p-8 text-center text-slate-500 bg-slate-900/40 rounded-xl border border-slate-800">
@@ -215,38 +254,48 @@ export const AdversaryPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3 max-h-[700px] overflow-y-auto pr-1">
-              {assessments.map((a) => {
-                const isSelected = selectedAssessment?.id === a.id;
-                return (
-                  <div
-                    key={a.id}
-                    onClick={() => handleSelectAssessment(a)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? "bg-slate-800/90 border-red-500/50 shadow-lg shadow-red-950/20 ring-1 ring-red-500/30"
-                        : "bg-slate-900/60 border-slate-800 hover:bg-slate-800/50"
-                    }`}
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <h3 className="font-semibold text-white text-sm">{a.name}</h3>
-                      {getStatusBadge(a.status)}
+              {assessments
+                .filter((a) => {
+                  if (statusCategory === "ALL") return true;
+                  if (statusCategory === "ACTIVE") return ["DRAFT", "AUTHORIZED", "RUNNING"].includes(a.status);
+                  if (statusCategory === "COMPLETED") return a.status === "COMPLETED";
+                  if (statusCategory === "FAILED") return a.status === "FAILED";
+                  if (statusCategory === "ARCHIVED") return a.status === "CANCELLED";
+                  return true;
+                })
+                .map((a) => {
+                  const isSelected = selectedAssessment?.id === a.id;
+                  return (
+                    <div
+                      key={a.id}
+                      onClick={() => handleSelectAssessment(a)}
+                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? "bg-slate-800/90 border-red-500/50 shadow-lg shadow-red-950/20 ring-1 ring-red-500/30"
+                          : "bg-slate-900/60 border-slate-800 hover:bg-slate-800/50"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <h3 className="font-semibold text-white text-sm">{a.name}</h3>
+                        {getStatusBadge(a.status)}
+                      </div>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                        <span className="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">
+                          {a.scenario}
+                        </span>
+                        <span>Env: <strong className="text-emerald-400">{a.environment}</strong></span>
+                        <span>Target: {a.authorized_scope?.assets?.[0] || "lab-server-01"}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-2 font-mono truncate">
+                        ID: {a.id}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
-                      <span className="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">
-                        {a.scenario}
-                      </span>
-                      <span>Env: <strong className="text-emerald-400">{a.environment}</strong></span>
-                      <span>Target: {a.authorized_scope?.assets?.[0] || "lab-server-01"}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-2 font-mono truncate">
-                      ID: {a.id}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
         </div>
+
 
         {/* Right: Selected Assessment Execution & Results */}
         <div className="lg:col-span-7">

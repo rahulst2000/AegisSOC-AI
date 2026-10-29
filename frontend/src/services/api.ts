@@ -8,20 +8,73 @@ import {
   User,
 } from "../types";
 
+export class ApiError extends Error {
+  status: number;
+  data: any;
+  isAuthError: boolean;
+  isForbidden: boolean;
+  isNotFound: boolean;
+  isValidationError: boolean;
+  isConflict: boolean;
+  isServerError: boolean;
+
+  constructor(status: number, message: string, data?: any) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+    this.isAuthError = status === 401;
+    this.isForbidden = status === 403;
+    this.isNotFound = status === 404;
+    this.isValidationError = status === 422;
+    this.isConflict = status === 409;
+    this.isServerError = status >= 500;
+  }
+}
+
+export type AuthExpiredCallback = () => void;
+
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1`;
 class ApiService {
   private token: string | null = null;
+  private refreshTokenVal: string | null = null;
+  private isRefreshing: boolean = false;
+  private authExpiredCallbacks: AuthExpiredCallback[] = [];
 
   constructor() {
     this.token = localStorage.getItem("aegis_access_token");
+    this.refreshTokenVal = localStorage.getItem("aegis_refresh_token");
   }
 
-  setToken(token: string | null) {
-    this.token = token;
-    if (token) {
-      localStorage.setItem("aegis_access_token", token);
+  onAuthExpired(cb: AuthExpiredCallback) {
+    this.authExpiredCallbacks.push(cb);
+  }
+
+  private notifyAuthExpired() {
+    this.authExpiredCallbacks.forEach((cb) => {
+      try {
+        cb();
+      } catch {
+        // Safe callback execution
+      }
+    });
+  }
+
+  setToken(accessToken: string | null, refreshToken?: string | null) {
+    this.token = accessToken;
+    if (accessToken) {
+      localStorage.setItem("aegis_access_token", accessToken);
     } else {
       localStorage.removeItem("aegis_access_token");
+    }
+
+    if (refreshToken !== undefined) {
+      this.refreshTokenVal = refreshToken;
+      if (refreshToken) {
+        localStorage.setItem("aegis_refresh_token", refreshToken);
+      } else {
+        localStorage.removeItem("aegis_refresh_token");
+      }
     }
   }
 
@@ -29,7 +82,38 @@ class ApiService {
     return this.token || localStorage.getItem("aegis_access_token");
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  getRefreshToken(): string | null {
+    return this.refreshTokenVal || localStorage.getItem("aegis_refresh_token");
+  }
+
+  async refreshToken(): Promise<string | null> {
+    const rfToken = this.getRefreshToken();
+    if (!rfToken) {
+      this.logout();
+      return null;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: rfToken }),
+      });
+      if (!response.ok) {
+        this.logout();
+        this.notifyAuthExpired();
+        return null;
+      }
+      const data = await response.json();
+      this.setToken(data.access_token, data.refresh_token);
+      return data.access_token;
+    } catch {
+      this.logout();
+      this.notifyAuthExpired();
+      return null;
+    }
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}, retryOn401 = true): Promise<T> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
@@ -40,20 +124,45 @@ class ApiService {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (netErr: any) {
+      throw new ApiError(0, `Network failure or server unreachable: ${netErr.message || "Unknown error"}`);
+    }
+
+    // 401 handling with automatic token refresh attempt
+    if (response.status === 401 && retryOn401 && endpoint !== "/auth/login" && endpoint !== "/auth/refresh") {
+      if (!this.isRefreshing) {
+        this.isRefreshing = true;
+        try {
+          const newToken = await this.refreshToken();
+          this.isRefreshing = false;
+          if (newToken) {
+            return this.request<T>(endpoint, options, false);
+          }
+        } catch {
+          this.isRefreshing = false;
+        }
+      }
+      this.logout();
+      this.notifyAuthExpired();
+      throw new ApiError(401, "Authentication expired — please sign in again.");
+    }
 
     if (!response.ok) {
       let errorMessage = `HTTP error ${response.status}`;
+      let errorData: any = null;
       try {
-        const errorJson = await response.json();
-        errorMessage = errorJson.detail || errorJson.error || errorMessage;
+        errorData = await response.json();
+        errorMessage = errorData.detail || errorData.error || errorMessage;
       } catch {
         // Fallback to status text
       }
-      throw new Error(errorMessage);
+      throw new ApiError(response.status, errorMessage, errorData);
     }
 
     return response.json() as Promise<T>;
@@ -75,7 +184,7 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(data),
     });
-    this.setToken(res.access_token);
+    this.setToken(res.access_token, res.refresh_token);
     return res;
   }
 
@@ -84,7 +193,7 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(credentials),
     });
-    this.setToken(res.access_token);
+    this.setToken(res.access_token, res.refresh_token);
     return res;
   }
 
@@ -92,9 +201,18 @@ class ApiService {
     return this.request<User>("/auth/me");
   }
 
-  logout() {
-    this.setToken(null);
+  async logout(): Promise<void> {
+    try {
+      if (this.getToken()) {
+        await this.request("/auth/logout", { method: "POST" }, false);
+      }
+    } catch {
+      // Best-effort logout notification
+    } finally {
+      this.setToken(null, null);
+    }
   }
+
 
   // Tenant
   async getMyTenant(): Promise<Tenant> {
@@ -187,9 +305,48 @@ class ApiService {
   }
 
   // Incidents
-  async getIncidents(): Promise<Incident[]> {
-    return this.request<Incident[]>("/incidents");
+  async getIncidents(params?: {
+    skip?: number;
+    limit?: number;
+    severity?: string;
+    status?: string;
+    time_window?: string;
+  }): Promise<Incident[]> {
+    const query = new URLSearchParams();
+    if (params?.skip !== undefined) query.set("skip", String(params.skip));
+    if (params?.limit !== undefined) query.set("limit", String(params.limit));
+    if (params?.severity && params.severity !== "ALL") query.set("severity", params.severity);
+    if (params?.status && params.status !== "ALL") query.set("status", params.status);
+    if (params?.time_window && params.time_window !== "ALL") query.set("time_window", params.time_window);
+    const qs = query.toString();
+    return this.request<Incident[]>(`/incidents${qs ? `?${qs}` : ""}`);
   }
+
+  async getIncidentStats(params?: {
+    severity?: string;
+    status?: string;
+    time_window?: string;
+  }): Promise<{
+    total_count: number;
+    critical_count: number;
+    high_count: number;
+    medium_count: number;
+    low_count: number;
+    open_count: number;
+    investigating_count: number;
+    resolved_count: number;
+    max_risk_score: number;
+    posture_status: string;
+    posture_color: string;
+  }> {
+    const query = new URLSearchParams();
+    if (params?.severity && params.severity !== "ALL") query.set("severity", params.severity);
+    if (params?.status && params.status !== "ALL") query.set("status", params.status);
+    if (params?.time_window && params.time_window !== "ALL") query.set("time_window", params.time_window);
+    const qs = query.toString();
+    return this.request(`/incidents/stats${qs ? `?${qs}` : ""}`);
+  }
+
 
   async getIncidentById(id: string): Promise<Incident> {
     return this.request<Incident>(`/incidents/${id}`);

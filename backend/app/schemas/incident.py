@@ -44,3 +44,17 @@ class IncidentRead(IncidentBase):
     last_seen: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class IncidentStats(BaseModel):
+    total_count: int = 0
+    critical_count: int = 0
+    high_count: int = 0
+    medium_count: int = 0
+    low_count: int = 0
+    open_count: int = 0
+    investigating_count: int = 0
+    resolved_count: int = 0
+    max_risk_score: float = 0.0
+    posture_status: str = "NOMINAL"
+    posture_color: str = "#10b981"

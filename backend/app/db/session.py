@@ -23,7 +23,12 @@ else:
     engine_kwargs["pool_pre_ping"] = True
     engine_kwargs["pool_size"] = 10
     engine_kwargs["max_overflow"] = 20
-    engine_kwargs["connect_args"] = {"ssl": "require"}
+    if (
+        "localhost" not in database_url
+        and "127.0.0.1" not in database_url
+        and settings.ENVIRONMENT.lower() == "production"
+    ):
+        engine_kwargs["connect_args"] = {"ssl": "require"}
 
 engine: AsyncEngine = create_async_engine(database_url, **engine_kwargs)
 

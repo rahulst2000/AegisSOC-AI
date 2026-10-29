@@ -206,13 +206,23 @@ export const IncidentsPage: React.FC<IncidentsPageProps> = ({ incidents, onRefre
     try {
       const esc = await api.escalateIncident(selectedIncident.id, reason, "HIGH");
       setEscalation(esc);
+      setEscalationReason("");
       onRefresh();
     } catch (err: any) {
-      alert("Escalation failed: " + (err.message || "Unknown error"));
+      if (err?.isAuthError || err?.status === 401) {
+        alert("Authentication expired — please sign in again.");
+      } else if (err?.isForbidden || err?.status === 403) {
+        alert("Access denied — your role does not have permission to escalate incidents.");
+      } else if (err?.isNotFound || err?.status === 404) {
+        alert("Escalation failed: Incident not found or belongs to another tenant.");
+      } else {
+        alert("Escalation failed: " + (err.message || "An internal error occurred. Please contact security operations."));
+      }
     } finally {
       setActionProcessing(false);
     }
   };
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>

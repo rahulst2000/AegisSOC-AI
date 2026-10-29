@@ -28,12 +28,13 @@ export const SecurityImprovementPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [pos, gapData, covData, findData, tuneData] = await Promise.all([
-        api.getPosture().catch(() => null),
-        api.getGaps().catch(() => []),
-        api.getCoverage().catch(() => []),
-        api.getFindings().catch(() => []),
-        api.getTuningRecommendations().catch(() => []),
+        api.getPosture(),
+        api.getGaps(),
+        api.getCoverage(),
+        api.getFindings(),
+        api.getTuningRecommendations(),
       ]);
       setPosture(pos);
       setGaps(gapData);
@@ -41,11 +42,18 @@ export const SecurityImprovementPage: React.FC = () => {
       setFindings(findData);
       setTuningRecommendations(tuneData);
     } catch (err: any) {
-      setError(err.message || "Failed to load continuous improvement data");
+      if (err?.isAuthError || err?.status === 401) {
+        setError("Authentication expired — please sign in again.");
+      } else if (err?.isForbidden || err?.status === 403) {
+        setError("Access denied — your role does not have permission for continuous security improvement.");
+      } else {
+        setError(err.message || "Failed to load continuous improvement data.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     loadData();
@@ -214,8 +222,14 @@ export const SecurityImprovementPage: React.FC = () => {
       ) : (
         <>
           {/* TAB 1: POSTURE */}
+          {activeTab === "posture" && !posture && (
+            <div className="p-12 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800">
+              No empirical security posture established yet. Execute adversary validation assessments to calculate baseline posture.
+            </div>
+          )}
           {activeTab === "posture" && posture && (
             <div className="space-y-6">
+
               {/* Executive Summary Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">

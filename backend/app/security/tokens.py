@@ -50,6 +50,7 @@ def create_refresh_token(
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "tenant_id": str(tenant_id),
+        "jti": uuid.uuid4().hex,
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
         "type": "refresh",

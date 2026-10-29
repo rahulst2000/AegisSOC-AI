@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   AlertTriangle,
   Server,
@@ -13,10 +13,12 @@ import {
   Compass,
   ExternalLink,
   Filter,
+  RotateCcw,
 } from "lucide-react";
 import { Alert, Asset, Incident, SecurityEvent, User } from "../types";
 import { MetricCard } from "../components/MetricCard";
 import { StatusBadge } from "../components/StatusBadge";
+import { api } from "../services/api";
 
 interface DashboardPageProps {
   user: User;
@@ -42,40 +44,75 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [timeFilter, setTimeFilter] = useState<string>("ALL");
 
-  // Filtered Incidents based on rapid filters
-  const filteredIncidents = useMemo(() => {
-    return incidents.filter((inc) => {
-      if (severityFilter !== "ALL" && inc.severity !== severityFilter) return false;
-      if (statusFilter !== "ALL") {
-        if (statusFilter === "OPEN" && (inc.status === "RESOLVED" || inc.status === "CLOSED")) return false;
-        if (statusFilter !== "OPEN" && inc.status !== statusFilter) return false;
-      }
-      if (timeFilter !== "ALL") {
-        const itemTime = new Date(inc.created_at || inc.updated_at || Date.now()).getTime();
-        const now = Date.now();
-        const windows: Record<string, number> = {
-          "15m": 15 * 60 * 1000,
-          "1h": 60 * 60 * 1000,
-          "24h": 24 * 60 * 60 * 1000,
-          "7d": 7 * 24 * 60 * 60 * 1000,
-        };
-        if (windows[timeFilter] && now - itemTime > windows[timeFilter]) return false;
-      }
-      return true;
-    });
-  }, [incidents, severityFilter, statusFilter, timeFilter]);
+  const [serverIncidents, setServerIncidents] = useState<Incident[] | null>(null);
+  const [serverStats, setServerStats] = useState<any | null>(null);
+  const [filterLoading, setFilterLoading] = useState<boolean>(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
 
-  // Aggregate Attack Metrics
-  const criticalCount = incidents.filter((i) => i.severity === "CRITICAL").length;
-  const highCount = incidents.filter((i) => i.severity === "HIGH").length;
-  const openIncidents = incidents.filter((i) => i.status !== "RESOLVED" && i.status !== "CLOSED").length;
+  const hasActiveFilters = severityFilter !== "ALL" || statusFilter !== "ALL" || timeFilter !== "ALL";
 
-  // Posture Score Calculation (0-100)
-  const maxRisk = incidents.reduce((max, i) => Math.max(max, i.risk_score || 0), 0);
+  const handleResetFilters = () => {
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setTimeFilter("ALL");
+  };
+
+  // Synchronize server-side filtered incidents and attack metrics
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchFilteredData = async () => {
+      setFilterLoading(true);
+      setFilterError(null);
+      try {
+        const [filteredList, stats] = await Promise.all([
+          api.getIncidents({
+            severity: severityFilter,
+            status: statusFilter,
+            time_window: timeFilter,
+            limit: 50,
+          }),
+          api.getIncidentStats({
+            severity: severityFilter,
+            status: statusFilter,
+            time_window: timeFilter,
+          }),
+        ]);
+        if (!isCancelled) {
+          setServerIncidents(filteredList);
+          setServerStats(stats);
+        }
+      } catch (err: any) {
+        if (!isCancelled) {
+          setFilterError(err?.message || "Failed to load filtered incidents");
+        }
+      } finally {
+        if (!isCancelled) setFilterLoading(false);
+      }
+    };
+
+    fetchFilteredData();
+    return () => {
+      isCancelled = true;
+    };
+  }, [severityFilter, statusFilter, timeFilter]);
+
+  // Active dataset for dashboard rendering
+  const displayIncidents = serverIncidents !== null ? serverIncidents : incidents;
+
+  // Aggregate Attack Metrics driven by authoritative stats
+  const criticalCount = serverStats?.critical_count ?? displayIncidents.filter((i) => i.severity === "CRITICAL").length;
+  const highCount = serverStats?.high_count ?? displayIncidents.filter((i) => i.severity === "HIGH").length;
+  const openIncidents = serverStats?.open_count ?? displayIncidents.filter((i) => i.status !== "RESOLVED" && i.status !== "CLOSED").length;
+
+  // Posture Score Calculation
+  const maxRisk = serverStats?.max_risk_score ?? displayIncidents.reduce((max, i) => Math.max(max, i.risk_score || 0), 0);
   const postureStatus =
-    criticalCount > 0 ? "CRITICAL THREAT" : highCount > 0 ? "ELEVATED RISK" : openIncidents > 0 ? "GUARDED" : "NOMINAL";
+    serverStats?.posture_status ??
+    (criticalCount > 0 ? "CRITICAL THREAT" : highCount > 0 ? "ELEVATED RISK" : openIncidents > 0 ? "GUARDED" : "NOMINAL");
   const postureColor =
-    criticalCount > 0 ? "#f43f5e" : highCount > 0 ? "#f59e0b" : openIncidents > 0 ? "#38bdf8" : "#10b981";
+    serverStats?.posture_color ??
+    (criticalCount > 0 ? "#f43f5e" : highCount > 0 ? "#f59e0b" : openIncidents > 0 ? "#38bdf8" : "#10b981");
+
 
   // Suspicious Source IPs derived from events and incidents
   const suspiciousIPs = useMemo(() => {
@@ -286,7 +323,29 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               </button>
             ))}
           </div>
+
+          {hasActiveFilters && (
+            <button
+              onClick={handleResetFilters}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                fontSize: "0.7rem",
+                padding: "0.25rem 0.6rem",
+                borderRadius: "4px",
+                border: "1px solid rgba(244, 63, 94, 0.4)",
+                background: "rgba(244, 63, 94, 0.15)",
+                color: "#fda4af",
+                cursor: "pointer",
+              }}
+            >
+              <RotateCcw size={12} />
+              <span>Reset Filters</span>
+            </button>
+          )}
         </div>
+
       </div>
 
       {/* 3. The 5 Core SOC Questions (Section 14 & 15 Clickable Context) */}
@@ -627,19 +686,65 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 gap: "0.25rem",
               }}
             >
-              <span>View all ({filteredIncidents.length})</span>
+              <span>View all ({displayIncidents.length})</span>
               <ArrowRight size={13} />
             </button>
           </div>
 
-          {filteredIncidents.length === 0 ? (
+          {filterLoading ? (
+            <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--text-muted)" }}>
+              <span className="live-indicator" style={{ width: "12px", height: "12px", margin: "0 auto 0.5rem" }} />
+              <p style={{ fontSize: "0.875rem" }}>Loading filtered incidents...</p>
+            </div>
+          ) : filterError ? (
+            <div style={{ textAlign: "center", padding: "2rem 1rem", color: "#fda4af" }}>
+              <p style={{ fontSize: "0.875rem" }}>⚠️ {filterError}</p>
+              <button
+                onClick={handleResetFilters}
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "0.3rem 0.6rem",
+                  fontSize: "0.75rem",
+                  borderRadius: "4px",
+                  background: "rgba(244, 63, 94, 0.2)",
+                  border: "1px solid rgba(244, 63, 94, 0.4)",
+                  color: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                Reset Filters
+              </button>
+            </div>
+          ) : displayIncidents.length === 0 ? (
             <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--text-muted)" }}>
               <ShieldCheck size={36} style={{ color: "#10b981", margin: "0 auto 0.5rem" }} />
-              <p style={{ fontSize: "0.875rem" }}>No active incidents matching the selected filters.</p>
+              <p style={{ fontSize: "0.875rem" }}>
+                {hasActiveFilters
+                  ? `No incidents matching criteria (Severity: ${severityFilter}, Status: ${statusFilter}, Time: ${timeFilter}).`
+                  : "No active security incidents recorded for tenant."}
+              </p>
+              {hasActiveFilters && (
+                <button
+                  onClick={handleResetFilters}
+                  style={{
+                    marginTop: "0.5rem",
+                    padding: "0.3rem 0.6rem",
+                    fontSize: "0.75rem",
+                    borderRadius: "4px",
+                    background: "rgba(56, 189, 248, 0.2)",
+                    border: "1px solid #38bdf8",
+                    color: "#38bdf8",
+                    cursor: "pointer",
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              {filteredIncidents.slice(0, 5).map((inc) => (
+              {displayIncidents.slice(0, 5).map((inc) => (
+
                 <div
                   key={inc.id}
                   onClick={() => onNavigateTab("incidents")}

@@ -95,7 +95,7 @@ def run_verification(backend_url: str, frontend_url: str, mode: str = "smoke", o
     print(f"Frontend Target: {frontend_url}")
     print("=" * 110)
 
-    with httpx.Client(timeout=20.0, follow_redirects=True) as client:
+    with httpx.Client(timeout=90.0, follow_redirects=True) as client:
         # ======================================================================
         # READ-ONLY PRODUCTION SMOKE VERIFICATION (Safe for all targets)
         # ======================================================================

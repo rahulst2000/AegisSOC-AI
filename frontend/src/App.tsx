@@ -19,11 +19,21 @@ export const App: React.FC = () => {
   const [tenantName, setTenantName] = useState<string>("");
   const [activeTab, setActiveTab] = useState<NavTab>("dashboard");
   const [initializing, setInitializing] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  // Setup auth expiration handler
+  useEffect(() => {
+    api.onAuthExpired(() => {
+      setUser(null);
+      setTenantName("");
+      setDataError("Your authentication session has expired. Please sign in again.");
+    });
+  }, []);
 
   // Load user session on startup
   useEffect(() => {
@@ -47,21 +57,27 @@ export const App: React.FC = () => {
 
   const refreshData = async () => {
     if (!user) return;
+    setDataError(null);
     try {
       const [incList, assetList, evtList, alertList, tenantInfo] = await Promise.all([
-        api.getIncidents().catch(() => []),
-        api.getAssets().catch(() => []),
-        api.getEvents().catch(() => []),
-        api.getAlerts().catch(() => []),
-        api.getMyTenant().catch(() => null),
+        api.getIncidents(),
+        api.getAssets(),
+        api.getEvents(),
+        api.getAlerts(),
+        api.getMyTenant(),
       ]);
       setIncidents(incList);
       setAssets(assetList);
       setEvents(evtList);
       setAlerts(alertList);
       if (tenantInfo) setTenantName(tenantInfo.name);
-    } catch {
-      // Handled silently
+    } catch (err: any) {
+      if (err?.isAuthError || err?.status === 401) {
+        setUser(null);
+        setDataError("Authentication expired — please sign in again.");
+      } else {
+        setDataError(err?.message || "Failed to synchronize operational security telemetry.");
+      }
     }
   };
 
@@ -73,6 +89,7 @@ export const App: React.FC = () => {
 
   const handleAuthSuccess = (authData: AuthResponse) => {
     setUser(authData.user);
+    setDataError(null);
     refreshData();
   };
 
@@ -84,7 +101,9 @@ export const App: React.FC = () => {
     setAssets([]);
     setEvents([]);
     setAlerts([]);
+    setDataError(null);
   };
+
 
   if (initializing) {
     return (
@@ -128,7 +147,39 @@ export const App: React.FC = () => {
         />
 
         <main style={{ flex: 1, padding: "2rem", overflowY: "auto" }}>
+          {dataError && (
+            <div
+              style={{
+                marginBottom: "1.5rem",
+                padding: "1rem 1.25rem",
+                borderRadius: "0.75rem",
+                backgroundColor: "rgba(244, 63, 94, 0.15)",
+                border: "1px solid rgba(244, 63, 94, 0.4)",
+                color: "#fecdd3",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span>⚠️ {dataError}</span>
+              <button
+                onClick={refreshData}
+                style={{
+                  background: "rgba(244, 63, 94, 0.3)",
+                  border: "none",
+                  color: "#fff",
+                  padding: "0.4rem 0.8rem",
+                  borderRadius: "0.5rem",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {activeTab === "dashboard" && (
+
             <DashboardPage
               user={user}
               incidents={incidents}

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.tenant import Tenant
 from app.models.user import User
-from app.schemas.auth import Token, UserLogin, UserRegister
+from app.schemas.auth import LogoutResponse, Token, TokenRefreshResponse, UserLogin, UserRegister
 from app.schemas.user import UserRead
 from app.security.hashing import hash_password, verify_password
 from app.security.roles import Role
@@ -162,3 +162,102 @@ async def authenticate_user(db: AsyncSession, login_data: UserLogin) -> Token:
         token_type="bearer",
         user=UserRead.model_validate(user),
     )
+
+
+async def refresh_user_token(db: AsyncSession, refresh_token_str: str) -> TokenRefreshResponse:
+    """
+    Validates a cryptographically signed refresh token and issues a fresh access token.
+    Rotates refresh token for defense-in-depth against token interception.
+    """
+    import uuid
+
+    from app.security.tokens import decode_token
+
+    try:
+        payload = decode_token(refresh_token_str)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid or expired refresh token: {str(exc)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Supplied token is not an authorized refresh token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user_id = uuid.UUID(payload["sub"])
+        tenant_id = uuid.UUID(payload["tenant_id"])
+    except (KeyError, ValueError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Malformed token claims in refresh token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from err
+
+    stmt = select(User).where(User.id == user_id, User.tenant_id == tenant_id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User identity could not be verified.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if user.status != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User account is {user.status.lower()}.",
+        )
+
+    # Issue fresh access token and rotated refresh token
+    new_access_token = create_access_token(
+        user_id=user.id,
+        tenant_id=user.tenant_id,
+        email=user.email,
+        role=user.role,
+    )
+    new_refresh_token = create_refresh_token(
+        user_id=user.id,
+        tenant_id=user.tenant_id,
+    )
+
+    await log_audit_event(
+        db=db,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        action="TOKEN_REFRESH",
+        resource_type="USER",
+        resource_id=str(user.id),
+        result="SUCCESS",
+        metadata={"role": user.role},
+    )
+    await db.commit()
+
+    return TokenRefreshResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        token_type="bearer",
+    )
+
+
+async def logout_user(db: AsyncSession, user: User) -> LogoutResponse:
+    """Logs session termination audit event and clears server-side state."""
+    await log_audit_event(
+        db=db,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        action="AUTH_LOGOUT",
+        resource_type="USER",
+        resource_id=str(user.id),
+        result="SUCCESS",
+        metadata={"email": user.email},
+    )
+    await db.commit()
+    return LogoutResponse(message="Successfully logged out.")
